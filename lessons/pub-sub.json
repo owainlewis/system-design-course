@@ -1,0 +1,114 @@
+{
+  "slug": "pub-sub",
+  "course": "System Design, Visually",
+  "part": "Async and messaging",
+  "title": "Pub/sub",
+  "summary": "How one event reaches every service that cares about it, without the sender knowing who they are.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A customer places an order. The email service sends a receipt, the inventory service reserves stock, and the analytics service records the sale. The order service could call each one in turn." },
+        { "p": "Then every new service that cares about orders means a change to the order service. Each call adds latency to the order. And if analytics is down, either the order fails or the order service has to remember to try again later." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "In **publish/subscribe**, the order service **publishes** one event, `order placed`, to a **topic**. Each service that wants it **subscribes** to the topic. The broker copies every event to every subscriber." },
+        { "p": "The publisher doesn't know who the subscribers are. Adding a new one is a change to that service only." },
+        { "figure": "fanout", "caption": "A queue hands each message to one consumer. A topic copies each message to every subscriber." },
+        { "p": "A queue and a topic are often used together. Each subscriber gets its own queue, fed from the topic. Its copy of every event waits there until it is processed, even if the subscriber is down. Within one subscriber, several consumers can share that queue." },
+        { "figure": "decouple", "caption": "Calling three services in turn, and publishing one event. Analytics is down in both. Only the direct calls fail the order." },
+        { "h3": "What changes" },
+        { "list": [
+          "**The order is done sooner.** The order service waits for the broker, not for every subscriber.",
+          "**Subscribers fail on their own.** One slow or broken subscriber doesn't hold up the others.",
+          "**Work happens later.** The receipt may arrive a few seconds after the order. The order service can't tell the user that every step has finished.",
+          "**The flow is harder to follow.** Nothing in the order service's code lists who reacts to an order. Tracing and a list of topics and subscribers help."
+        ] }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**SNS to SQS is the common AWS pattern.** Amazon SNS can [fan out](https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html) each message to several SQS queues, one per subscriber.",
+          "**Google Pub/Sub has topics and subscriptions.** In [Pub/Sub](https://cloud.google.com/pubsub/docs/overview), each subscription receives every message published to its topic, and its subscribers share them.",
+          "**Publish events, not commands.** Name events for what happened, such as `order placed`, rather than what someone should do. Subscribers decide what to do.",
+          "**Agree on the event's shape.** Subscribers depend on its fields. Add fields freely, but treat removing or renaming one as a breaking change."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A publisher sends one event to a topic, and the broker copies it to every subscriber.",
+          "The publisher doesn't know its subscribers, so adding one needs no change to the publisher.",
+          "Giving each subscriber its own queue keeps its events safe while it is down.",
+          "The cost is work that finishes later, and a flow that is harder to trace."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "fanout": {
+      "kind": "topic",
+      "still": 0.6,
+      "scenarios": {
+        "queue": { "label": "Queue", "note": "each message to one consumer", "scene": { "mode": "queue", "period": 10, "rate": 1.5, "count": 12, "broker": "Queue", "targets": [{ "label": "Worker 1" }, { "label": "Worker 2" }, { "label": "Worker 3" }] } },
+        "topic": { "label": "Topic", "note": "each message to every subscriber", "scene": { "mode": "pubsub", "period": 10, "rate": 1.5, "count": 12, "broker": "Topic: orders", "targets": [{ "label": "Email" }, { "label": "Inventory" }, { "label": "Analytics" }] } }
+      }
+    },
+    "decouple": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "orders", "label": "Order service", "short": "Orders", "icon": "server" },
+        { "id": "topic", "label": "Topic", "short": "Topic", "icon": "balancer" },
+        { "id": "email", "label": "Email", "short": "Email", "icon": "server" },
+        { "id": "stock", "label": "Inventory", "short": "Stock", "icon": "server" },
+        { "id": "stats", "label": "Analytics", "short": "Stats", "icon": "server" }
+      ],
+      "scenarios": {
+        "direct": {
+          "label": "Direct calls",
+          "note": "analytics is down, so the order fails",
+          "state": { "stats": "down" },
+          "steps": [
+            { "from": "orders", "to": "email", "label": "Send receipt" },
+            { "from": "email", "to": "orders", "label": "OK", "kind": "answer" },
+            { "from": "orders", "to": "stock", "label": "Reserve stock" },
+            { "from": "stock", "to": "orders", "label": "OK", "kind": "answer" },
+            { "from": "orders", "to": "stats", "label": "Record sale", "kind": "lost" },
+            { "from": "orders", "to": "orders", "label": "Timeout: order failed", "kind": "fail" }
+          ]
+        },
+        "publish": {
+          "label": "Publish an event",
+          "note": "the order succeeds; analytics catches up later",
+          "state": { "stats": "down" },
+          "steps": [
+            { "from": "orders", "to": "topic", "label": "order placed" },
+            { "from": "topic", "to": "orders", "label": "Stored", "kind": "answer" },
+            { "from": "topic", "to": "email", "label": "order placed" },
+            { "from": "topic", "to": "stock", "label": "order placed" },
+            { "from": "topic", "to": "stats", "label": "order placed", "kind": "lost" },
+            { "from": "topic", "to": "topic", "label": "Keep it for analytics", "set": { "topic": "1 waiting for analytics" } }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "Amazon SNS: fanout to SQS queues", "url": "https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html", "note": "Sending each message to several queues.", "type": "docs" },
+    { "label": "Google Cloud Pub/Sub overview", "url": "https://cloud.google.com/pubsub/docs/overview", "note": "Topics, subscriptions and how messages flow between them.", "type": "docs" },
+    { "label": "Microsoft: publisher-subscriber pattern", "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/publisher-subscriber", "note": "When to use pub/sub and the issues to plan for.", "type": "docs" }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "slug": "event-logs",
+  "course": "System Design, Visually",
+  "part": "Async and messaging",
+  "title": "Event logs and Kafka",
+  "summary": "A log keeps every event in order after it is read, so many consumers can read it at their own pace and replay it from the start.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A queue deletes a message once it is processed. That is fine for jobs. But some data is useful long after it first arrives." },
+        { "p": "A new analytics service wants every order from the last week. A bug in the search indexer means its index must be rebuilt from scratch. With a queue, those events are gone." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "An **event log** is an append-only list of events. Producers add events to the end. Nothing is changed in place, and reading an event doesn't remove it. The log keeps events for a set time, such as a week, or forever." },
+        { "p": "Each event has an **offset**, its position in the log. A consumer keeps track of the offset it has reached. To read again from the start, it moves its offset back." },
+        { "h3": "Partitions" },
+        { "p": "One log on one machine has a limit. So a **topic** is split into **partitions**, separate logs that can live on different machines. Each event goes to a partition chosen by a hash of its key, such as the user ID." },
+        { "p": "Order is kept within a partition, not across the topic. Events with the same key always land in the same partition, so all of one user's events stay in order." },
+        { "h3": "Consumer groups" },
+        { "p": "A **consumer group** is one reader of the topic, such as billing. It keeps its own offset in each partition. Two groups read the same events without affecting each other. Inside a group, each partition is read by one consumer, so the number of partitions limits how many consumers a group can use." },
+        { "figure": "log", "caption": "Events from four users go into three partitions by key. Each group has its own offset in each partition, shown by the triangles. A group that starts late reads everything from offset 0." }
+      ]
+    },
+    {
+      "id": "sizing",
+      "heading": "How much storage",
+      "blocks": [
+        { "p": "Keeping events costs disk. The log stores each event once per copy, for as long as retention says." },
+        { "figure": "storage", "caption": "Disk needed for a topic, from event rate, event size, retention and copies." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Kafka is the common event log.** Its [documentation](https://kafka.apache.org/documentation/#intro_concepts_and_terms) describes topics split into partitions, events with the same key going to the same partition, and order kept per partition.",
+          "**Retention is a setting.** Kafka keeps events for a configured time or size. The broker default for `log.retention.hours` is 168, which is 7 days.",
+          "**Compaction keeps the latest value per key.** With [log compaction](https://kafka.apache.org/documentation/#compaction), Kafka keeps at least the last event for each key, so a topic can hold the current state of every record.",
+          "**The log as the source of truth.** Jay Kreps' [The Log](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying) explains how a shared log lets many systems build their own views of the same data.",
+          "**Choose the key with care.** One very busy key puts all its events in one partition, and that partition becomes the bottleneck, as in the sharding lesson."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "An event log appends events and keeps them after they are read.",
+          "Each consumer group tracks its own offset, so groups read independently and can replay from the start.",
+          "Topics are split into partitions by key. Order holds within a partition, and the partition count limits a group's consumers.",
+          "Retention sets how long events are kept, and so how much disk the topic needs."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "log": {
+      "kind": "topic",
+      "still": 0.5,
+      "scenarios": {
+        "groups": { "label": "Two groups", "note": "both read every event, at their own pace", "scene": { "mode": "log", "period": 13, "rate": 2, "count": 20, "keys": ["user A", "user B", "user C", "user D"], "partitions": 3, "groups": [{ "label": "Billing", "rate": 3 }, { "label": "Search", "rate": 0.7 }] } },
+        "replay": { "label": "A new group replays", "note": "analytics starts at 5 s and reads from offset 0", "scene": { "mode": "log", "period": 13, "rate": 2, "count": 20, "keys": ["user A", "user B", "user C", "user D"], "partitions": 3, "groups": [{ "label": "Billing", "rate": 3 }, { "label": "Analytics", "rate": 2, "start": 5 }] } }
+      }
+    },
+    "storage": {
+      "kind": "calc",
+      "controls": [
+        { "type": "range", "key": "rate", "label": "Events a second (thousands)", "min": 1, "max": 100 },
+        { "type": "range", "key": "size", "label": "Event size (bytes)", "min": 100, "max": 5000, "step": 100 },
+        { "type": "range", "key": "days", "label": "Retention (days)", "min": 1, "max": 30 },
+        { "type": "range", "key": "copies", "label": "Copies", "min": 1, "max": 3 }
+      ],
+      "ctrl": { "rate": 10, "size": 1000, "days": 7, "copies": 3 },
+      "formats": { "perDay": "bytes", "kept": "bytes" },
+      "rows": [
+        { "key": "perDay", "label": "New data a day", "expr": "rate * 1000 * size * 86400", "show": "{rate}k events × {size} bytes × 86,400 s", "format": "bytes" },
+        { "key": "kept", "label": "Data kept", "expr": "perDay * days", "show": "{perDay} × {days} days", "format": "bytes" },
+        { "label": "Disk across the cluster", "expr": "kept * copies", "show": "{kept} × {copies} copies", "format": "bytes", "tone": "accent" }
+      ]
+    }
+  },
+  "references": [
+    { "label": "Apache Kafka: main concepts and terminology", "url": "https://kafka.apache.org/documentation/#intro_concepts_and_terms", "note": "Topics, partitions, keys, ordering and retention.", "type": "docs" },
+    { "label": "Apache Kafka: log compaction", "url": "https://kafka.apache.org/documentation/#compaction", "note": "Keeping the latest event for each key.", "type": "docs" },
+    { "label": "Jay Kreps: The Log (2013)", "url": "https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying", "note": "Why a shared log is a good base for data systems.", "type": "engineering" }
+  ]
+}

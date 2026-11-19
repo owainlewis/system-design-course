@@ -1,0 +1,116 @@
+{
+  "slug": "delivery-guarantees",
+  "course": "System Design, Visually",
+  "part": "Async and messaging",
+  "title": "Delivery guarantees",
+  "summary": "At-most-once, at-least-once and exactly-once: what each promises, where messages get lost or doubled, and how an idempotent consumer gives the effect of exactly once.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A consumer takes a message, does the work, and acknowledges it. A crash can happen between any two of those steps. The broker only knows whether an acknowledgement arrived." },
+        { "p": "So the system has to pick what to do when it can't be sure. It can risk losing a message, or risk handling it twice." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "list": [
+          "**At most once.** The consumer acknowledges the message before doing the work. A crash after the ack loses the message. Nothing is ever handled twice.",
+          "**At least once.** The consumer acknowledges after the work is done. A crash before the ack means the broker sends the message again, so it may be handled twice. Nothing is lost.",
+          "**Exactly once.** Every message has its effect once. A broker can't promise this alone, because the effect happens outside it, in your database or another service."
+        ] },
+        { "figure": "delivery", "caption": "A consumer saving order 7 crashes partway. At most once loses the order. At least once saves it twice. An idempotent consumer sees order 7 is already saved." },
+        { "h3": "Effectively once" },
+        { "p": "Most systems use at-least-once delivery and make the consumer idempotent. The consumer records the ID of each message it has handled, in the same transaction as the work. When a message arrives again, it sees the ID and skips the work." },
+        { "p": "The result is that each message has its effect once, even though it may be delivered more than once. This is often called effectively once." },
+        { "p": "The same idea works without a stored list when the work is idempotent by nature. Setting `status = paid` twice is harmless. Adding £20 twice is not." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**SQS standard queues deliver at least once.** Amazon SQS says a [standard queue](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html) can deliver a message more than once, so consumers should be idempotent.",
+          "**SQS FIFO queues remove duplicates for a while.** [FIFO queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html) drop a message with the same deduplication ID sent within a 5-minute interval.",
+          "**Kafka offers exactly once inside Kafka.** Its [idempotent producer and transactions](https://kafka.apache.org/documentation/#semantics) let a job read from one topic and write to another with each event counted once. Effects outside Kafka still need an idempotent consumer.",
+          "**Default to at least once.** Losing data is usually worse than handling it twice, and duplicates can be made harmless. Choose at most once only for data you can afford to lose, such as some metrics."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "At most once acknowledges first and can lose messages.",
+          "At least once acknowledges after the work and can deliver duplicates.",
+          "A broker can't make an effect in your database happen exactly once.",
+          "At-least-once delivery with an idempotent consumer gives each message its effect once."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "delivery": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "broker", "label": "Broker", "short": "Broker", "icon": "balancer" },
+        { "id": "worker", "label": "Consumer", "short": "Consumer", "icon": "server" },
+        { "id": "db", "label": "Database", "short": "DB", "icon": "store" }
+      ],
+      "scenarios": {
+        "most": {
+          "label": "At most once",
+          "note": "order 7 was lost",
+          "state": { "db": "orders: none" },
+          "steps": [
+            { "from": "broker", "to": "worker", "label": "Message: order 7" },
+            { "from": "worker", "to": "broker", "label": "Ack", "kind": "refer", "set": { "broker": "order 7 done" } },
+            { "from": "worker", "to": "worker", "label": "Crash before saving", "kind": "fail" },
+            { "from": "broker", "to": "broker", "label": "Acked: nothing to resend" }
+          ]
+        },
+        "least": {
+          "label": "At least once",
+          "note": "order 7 was saved twice",
+          "state": { "db": "orders: none" },
+          "steps": [
+            { "from": "broker", "to": "worker", "label": "Message: order 7" },
+            { "from": "worker", "to": "db", "label": "Save order 7", "set": { "db": "orders: 7" } },
+            { "from": "worker", "to": "worker", "label": "Crash before the ack", "kind": "fail" },
+            { "from": "broker", "to": "broker", "label": "No ack: send again" },
+            { "from": "broker", "to": "worker", "label": "Message: order 7" },
+            { "from": "worker", "to": "db", "label": "Save order 7", "set": { "db": "orders: 7, 7" }, "kind": "fail" },
+            { "from": "worker", "to": "broker", "label": "Ack", "kind": "refer" }
+          ]
+        },
+        "once": {
+          "label": "Idempotent consumer",
+          "note": "delivered twice, saved once",
+          "state": { "db": "orders: none" },
+          "steps": [
+            { "from": "broker", "to": "worker", "label": "Message: order 7" },
+            { "from": "worker", "to": "db", "label": "Save order 7 and its ID", "set": { "db": "orders: 7" } },
+            { "from": "worker", "to": "worker", "label": "Crash before the ack", "kind": "fail" },
+            { "from": "broker", "to": "broker", "label": "No ack: send again" },
+            { "from": "broker", "to": "worker", "label": "Message: order 7" },
+            { "from": "worker", "to": "db", "label": "Seen message 7?" },
+            { "from": "db", "to": "worker", "label": "Yes: skip", "kind": "refer" },
+            { "from": "worker", "to": "broker", "label": "Ack", "kind": "refer" }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "Amazon SQS: standard queues", "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html", "note": "At-least-once delivery and duplicate messages.", "type": "docs" },
+    { "label": "Amazon SQS: exactly-once processing in FIFO queues", "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html", "note": "Deduplication within a 5-minute interval.", "type": "docs" },
+    { "label": "Apache Kafka: message delivery semantics", "url": "https://kafka.apache.org/documentation/#semantics", "note": "At most once, at least once and exactly once in Kafka.", "type": "docs" }
+  ]
+}

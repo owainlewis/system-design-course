@@ -14,7 +14,7 @@ const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x)); const lerp = (a,
 const fmt = (n, d = 0) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 ${read('src/sim.js')}
 ${kinds.map(k => read('src/kinds/' + k)).join('\n')}
-globalThis.api = { KINDS, calcRun, tlEnd, tlSpans, caSimulate, shSimulate };
+globalThis.api = { KINDS, calcRun, tlEnd, tlSpans, caSimulate, shSimulate, qSimulate, tpSimulate };
 globalThis.lookup = name => eval(name);`, ctx);
 export const api = ctx.api, lookup = ctx.lookup;
 const course = JSON.parse(read('course.json'));
@@ -42,6 +42,18 @@ const validators = {
   bars(fig) {
     const sets = fig.sets ? Object.values(fig.sets).map(s => s.items) : [fig.items];
     for (const items of sets) for (const it of items) assert.ok(it.value > 0, `${it.label} has a positive value`);
+  },
+  queue(fig) {
+    const scenes = fig.scenarios ? Object.values(fig.scenarios).map(s => s.scene) : [fig.scene];
+    for (const sc of scenes) { assert.ok(sc.consumers >= 1 && sc.work > 0, 'has consumers and work'); for (const g of sc.schedule) assert.ok(g.to > g.from && g.rate > 0, 'schedule segment is valid'); }
+  },
+  topic(fig) {
+    const scenes = fig.scenarios ? Object.values(fig.scenarios).map(s => s.scene) : [fig.scene];
+    for (const sc of scenes) {
+      assert.ok(['queue', 'pubsub', 'log'].includes(sc.mode), `mode ${sc.mode} is known`);
+      if (sc.mode === 'log') { const m = api.tpSimulate(sc); assert.ok(m.parts.filter(p => p.length).length >= 2, 'keys spread over at least two partitions'); }
+      else assert.ok(sc.targets.length >= 2, 'has targets');
+    }
   },
   calc(fig) {
     for (const c of fig.controls || []) if (c.type === 'range') assert.ok(fig.ctrl[c.key] >= c.min && fig.ctrl[c.key] <= c.max, `${c.key} starts inside its range`);
@@ -131,4 +143,30 @@ test('consensus: a majority of 5 is 3, and 4 servers tolerate no more failures t
 test('replication: W + R > N means reads overlap the latest write', () => {
   const c = lesson('replication').figures.playground;
   assert.equal(api.calcRun(c, { n: 3, w: 2, r: 2 }).out[1].v, 1); assert.equal(api.calcRun(c, { n: 3, w: 2, r: 1 }).out[1].v, 0);
+});
+
+/* ---------- async and messaging ---------- */
+const q = scene => { const m = api.qSimulate(scene); return { maxq: Math.max(...m.samples.map(x => x.q)), blocked: Math.max(...m.samples.map(x => x.b)), rejected: m.msgs.filter(x => x.rejected).length, wait: Math.max(...m.msgs.filter(x => x.wait != null).map(x => x.wait)), lost: m.msgs.filter(x => x.start == null && !x.rejected && !x.shed).length }; };
+test('message queues: a burst queues up and drains with nothing lost; more consumers keep the queue short', () => {
+  const f = lesson('message-queues').figures, burst = q(f.burst.scene);
+  assert.ok(burst.maxq >= 10, `queue peaks at ${burst.maxq}`); assert.equal(burst.lost, 0); assert.equal(burst.rejected, 0);
+  assert.ok(q({ ...f.playground.scene, consumers: 4 }).maxq < burst.maxq / 2);
+});
+test('backpressure: a limit of 8 is never exceeded; reject refuses messages, block makes the producer wait', () => {
+  const sc = lesson('backpressure').figures.full.scenarios, grow = q(sc.grow.scene), rej = q(sc.reject.scene), blk = q(sc.block.scene);
+  assert.ok(grow.maxq > 8 && grow.wait > rej.wait);
+  assert.ok(rej.maxq <= 8 && rej.rejected > 0); assert.ok(blk.maxq <= 8 && blk.rejected === 0 && blk.blocked > 0);
+  for (const r of [grow, rej, blk]) assert.equal(r.lost, 0);
+});
+test('pub/sub: a queue delivers each message once, a topic once per subscriber', () => {
+  const sc = lesson('pub-sub').figures.fanout.scenarios, a = api.tpSimulate(sc.queue.scene), b = api.tpSimulate(sc.topic.scene);
+  assert.equal(a.msgs.reduce((n, m) => n + m.to.length, 0), a.msgs.length);
+  assert.equal(b.msgs.reduce((n, m) => n + m.to.length, 0), b.msgs.length * 3);
+});
+test('event logs: one key always lands in one partition, and a late group still reads every event', () => {
+  const sc = lesson('event-logs').figures.log.scenarios.replay.scene, m = api.tpSimulate(sc);
+  const parts = new Map(); m.msgs.forEach(x => { parts.set(x.key, (parts.get(x.key) || new Set()).add(x.part)); });
+  for (const s of parts.values()) assert.equal(s.size, 1);
+  const late = m.reads[1].flat(); assert.equal(late.length, m.msgs.length); assert.ok(Math.min(...late) >= 5);
+  assert.ok(Math.max(...late) < sc.period, 'the late group catches up before the loop ends');
 });

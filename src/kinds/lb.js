@@ -4,9 +4,11 @@
 const LB_IN = 0.45, LB_OUT = 0.35;
 const LB_ALGOS = [['rr', 'Round robin'], ['random', 'Random'], ['least', 'Least connections'], ['two', 'Two random choices']];
 
+const lbBase = f => f.def.scenarios ? f.def.scenarios[f.ctrl.scenario ?? Object.keys(f.def.scenarios)[0]].scene : f.def.scene;
 function lbScene(f) {
-  const s = f.def.scene, c = f.ctrl;
-  const servers = s.servers.map((v, i) => ({ ...v }));
+  const s = lbBase(f), c = f.ctrl;
+  let servers = s.servers.map((v, i) => ({ ...v }));
+  if (c.n != null) servers = Array.from({ length: c.n }, () => ({ speed: 1 }));
   if (c.slow != null) servers.forEach((v, i) => v.speed = (c.slow && i === servers.length - 1) ? .4 : 1);
   return { ...s, servers, algo: c.algo ?? s.algo, rate: c.rate ?? s.rate };
 }
@@ -25,7 +27,8 @@ function lbSimulate(s) {
   let rr = 0;
   reqs.forEach((q, k) => {
     q.id = k; const at = q.t + LB_IN;         // when the load balancer decides
-    const pool = [...Array(N).keys()].filter(i => lbThinksUp(i, at));
+    let pool = [...Array(N).keys()].filter(i => lbThinksUp(i, at));
+    if (!pool.length) pool = [...Array(N).keys()];   // nothing healthy: send to all rather than none
     let i;
     if (s.algo === 'rr') { i = pool[rr % pool.length]; rr++; }
     else if (s.algo === 'random') i = pool[Math.floor(pick() * pool.length)];
@@ -46,8 +49,15 @@ function lbSimulate(s) {
 function pct(xs, p) { if (!xs.length) return 0; const a = [...xs].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(p * a.length))]; }
 
 KINDS.lb = {
-  period: f => f.def.scene.period,
-  init(f) { if (f.def.playground) { f.ctrl.algo ??= 'rr'; f.ctrl.slow ??= 1; f.ctrl.rate ??= 12; } },
+  period: f => lbBase(f).period,
+  init(f) {
+    if (f.def.playground && !f.def.ctrl?.n) { f.ctrl.algo ??= 'rr'; f.ctrl.slow ??= 1; f.ctrl.rate ??= 12; }
+    if (f.def.scenarios && f.ctrl.scenario == null) f.ctrl.scenario = Object.keys(f.def.scenarios)[0];
+    if (f.def.scenarios && !f.def.controls) {
+      f.def.controls = [{ type: 'toggle', key: 'scenario', label: '', options: Object.entries(f.def.scenarios).map(([k, v]) => [k, v.label]) }];
+      f.el.querySelector('.fig').insertAdjacentHTML('afterbegin', '<div class="ctls" data-ctls></div>');
+    }
+  },
   draw(f, wantStats) {
     const s = lbScene(f), sim = lbSimulate(s), now = f.t, N = sim.N;
     const portrait = (f.cv.parentElement.clientWidth || 600) < 600;
@@ -85,7 +95,7 @@ KINDS.lb = {
     node(ctx, LB.x, LB.y, 'balancer', 'Load balancer', ALGO_LB_NAME[s.algo]);
     S.forEach((p, i) => {
       const down = sim.isDown(i, now), out = sim.jobs[i].filter(j => j.at <= now && j.end > now && !j.failed).length;
-      const v = s.servers[i], sub = down ? (sim.lbThinksUp(i, now) ? 'down, not detected' : 'down, removed') : (v.speed ?? 1) < 1 ? `${Math.round(v.speed * 100)}% speed` : null;
+      const v = s.servers[i], sub = down ? (N === 1 ? 'down' : sim.lbThinksUp(i, now) ? 'down, not detected' : 'down, removed') : (v.speed ?? 1) < 1 ? `${Math.round(v.speed * 100)}% speed` : (v.speed ?? 1) > 1 ? `${v.speed}× speed` : null;
       node(ctx, p.x, p.y, 'server', v.label || `Server ${i + 1}`, sub, { stroke: down ? COL.red : null, subColor: down ? COL.red : null });
       if (!down) tag(ctx, portrait ? p.x + 30 : p.x + 44, portrait ? p.y - 10 : p.y, `${out}`, out > 6);
     });
@@ -109,6 +119,7 @@ KINDS.lb = {
     const recent = done.filter(q => !q.failed && q.end > now - 2).map(q => q.latency);
     const errs = done.filter(q => q.failed).length;
     const maxQ = Math.max(...S.map((p, i) => sim.jobs[i].filter(j => j.at <= now && j.end > now && !j.failed).length));
+    if (!recent.length && errs) return `<span>no responses in the last 2 s</span><span class="bad">errors ${errs}</span>`;
     return `<span>median ${fmt(pct(recent, .5) * 1000)} ms</span><span class="${pct(recent, .95) > 1 ? 'bad' : ''}">p95 ${fmt(pct(recent, .95) * 1000)} ms</span><span>longest queue ${maxQ}</span>` + (s.health ? `<span class="${errs ? 'bad' : ''}">errors ${errs}</span>` : '');
   }
 };

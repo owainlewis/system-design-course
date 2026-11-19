@@ -1,0 +1,336 @@
+{
+  "slug": "api-gateways",
+  "course": "System Design, Visually",
+  "part": "Scaling the web tier",
+  "title": "API gateways",
+  "summary": "One front door for many backend services: routing, checks every request needs, and combining calls for clients.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "As a system grows, it often splits into several services: one for users, one for orders, one for payments. Each has its own address."
+        },
+        {
+          "p": "Without help, every client must know every address. Every service must check login tokens, enforce rate limits and log requests in the same way. And a mobile app that needs data from three services makes three slow round trips over a mobile network."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "An **API gateway** is a reverse proxy that understands your API. Clients send every request to the gateway. The gateway runs the checks that every request needs, then forwards the request to the right service."
+        },
+        {
+          "list": [
+            "**Routing.** `/users/...` goes to the users service and `/orders/...` to the orders service. Clients see one address.",
+            "**Authentication.** The gateway checks the request's token once, so services behind it can trust who the caller is.",
+            "**Rate limiting.** The gateway counts requests per client and rejects the excess with a 429, as in the rate limiting lesson.",
+            "**Logging and metrics.** Every request passes one place, so it is measured the same way."
+          ]
+        },
+        {
+          "figure": "checks",
+          "caption": "A valid request, a request with no token, and a request from a client over its limit. Only the valid request reaches a service."
+        },
+        {
+          "h3": "Combining calls"
+        },
+        {
+          "p": "A gateway can also answer one client request by calling several services and combining the results. Microsoft's architecture guide calls this the [gateway aggregation pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/gateway-aggregation)."
+        },
+        {
+          "p": "It pays off because the gateway sits in the datacenter, next to the services. Its calls to them are short round trips, and it can make them in parallel. The client makes one long round trip instead of three."
+        },
+        {
+          "figure": "aggregation",
+          "caption": "A phone needs a profile, recent orders and recommendations. It makes three calls over a 100 ms mobile round trip, or one call to a gateway that makes the three calls in parallel."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Managed gateways exist.** [Amazon API Gateway](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html) throttles requests with a token bucket, per account and per API, and can check tokens before a request reaches your code.",
+            "**One gateway per kind of client.** The [Backends for Frontends pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/backends-for-frontends) gives the mobile app and the website separate gateways, so each can shape responses for its own screens.",
+            "**Keep business logic out.** A gateway that starts to make business decisions becomes a service that every team must change. Keep it to routing and checks that apply to every request.",
+            "**It adds a hop and a dependency.** Every request now passes through the gateway, so it must be fast and run as several copies."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "An API gateway gives clients one address in front of many services.",
+            "It handles routing, authentication, rate limiting and logging in one place.",
+            "It can combine several service calls into one response, saving clients round trips.",
+            "Keep business logic in the services, and run the gateway as several copies."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "checks": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "app",
+          "label": "Mobile app",
+          "short": "App",
+          "icon": "app"
+        },
+        {
+          "id": "gw",
+          "label": "API gateway",
+          "short": "Gateway",
+          "icon": "balancer"
+        },
+        {
+          "id": "orders",
+          "label": "Orders service",
+          "short": "Orders",
+          "icon": "server"
+        }
+      ],
+      "scenarios": {
+        "ok": {
+          "label": "Valid request",
+          "steps": [
+            {
+              "from": "app",
+              "to": "gw",
+              "label": "GET /orders, token"
+            },
+            {
+              "from": "gw",
+              "to": "gw",
+              "label": "Token valid, under limit"
+            },
+            {
+              "from": "gw",
+              "to": "orders",
+              "label": "GET /orders, user 7"
+            },
+            {
+              "from": "orders",
+              "to": "gw",
+              "label": "3 orders",
+              "kind": "answer"
+            },
+            {
+              "from": "gw",
+              "to": "app",
+              "label": "200 OK",
+              "kind": "answer"
+            }
+          ]
+        },
+        "noauth": {
+          "label": "No token",
+          "steps": [
+            {
+              "from": "app",
+              "to": "gw",
+              "label": "GET /orders"
+            },
+            {
+              "from": "gw",
+              "to": "gw",
+              "label": "No token"
+            },
+            {
+              "from": "gw",
+              "to": "app",
+              "label": "401 Unauthorized",
+              "kind": "fail"
+            }
+          ]
+        },
+        "limited": {
+          "label": "Over the limit",
+          "steps": [
+            {
+              "from": "app",
+              "to": "gw",
+              "label": "GET /orders, token"
+            },
+            {
+              "from": "gw",
+              "to": "gw",
+              "label": "101st request this minute"
+            },
+            {
+              "from": "gw",
+              "to": "app",
+              "label": "429 Too Many Requests",
+              "kind": "fail"
+            }
+          ]
+        }
+      },
+      "counter": {
+        "from": "gw",
+        "to": "orders",
+        "label": "requests that reached a service"
+      }
+    },
+    "aggregation": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [
+        [
+          "net",
+          "mobile network"
+        ],
+        [
+          "work",
+          "service work"
+        ]
+      ],
+      "scenarios": {
+        "direct": {
+          "label": "Three calls from the phone",
+          "note": "three mobile round trips, one after another",
+          "rows": [
+            {
+              "label": "Profile",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 50,
+                  "tone": "net"
+                },
+                {
+                  "s": 50,
+                  "d": 30,
+                  "tone": "work"
+                },
+                {
+                  "s": 80,
+                  "d": 50,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Recent orders",
+              "spans": [
+                {
+                  "s": 130,
+                  "d": 50,
+                  "tone": "net"
+                },
+                {
+                  "s": 180,
+                  "d": 40,
+                  "tone": "work"
+                },
+                {
+                  "s": 220,
+                  "d": 50,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Recommendations",
+              "spans": [
+                {
+                  "s": 270,
+                  "d": 50,
+                  "tone": "net"
+                },
+                {
+                  "s": 320,
+                  "d": 60,
+                  "tone": "work"
+                },
+                {
+                  "s": 380,
+                  "d": 50,
+                  "tone": "net"
+                }
+              ]
+            }
+          ]
+        },
+        "gateway": {
+          "label": "One call to a gateway",
+          "note": "one mobile round trip; the gateway calls the services in parallel",
+          "rows": [
+            {
+              "label": "Phone to gateway",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 50,
+                  "tone": "net"
+                },
+                {
+                  "s": 112,
+                  "d": 50,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Profile",
+              "depth": 1,
+              "s": 51,
+              "d": 32,
+              "tone": "work"
+            },
+            {
+              "label": "Recent orders",
+              "depth": 1,
+              "s": 51,
+              "d": 42,
+              "tone": "work"
+            },
+            {
+              "label": "Recommendations",
+              "depth": 1,
+              "s": 51,
+              "d": 61,
+              "tone": "work"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "Microsoft: Gateway aggregation pattern",
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/gateway-aggregation",
+      "note": "Combining several backend calls into one client request.",
+      "type": "docs"
+    },
+    {
+      "label": "Microsoft: Backends for Frontends pattern",
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/backends-for-frontends",
+      "note": "A separate gateway for each kind of client.",
+      "type": "docs"
+    },
+    {
+      "label": "Amazon API Gateway: throttle requests",
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html",
+      "note": "Token bucket throttling per account and per API.",
+      "type": "docs"
+    }
+  ]
+}

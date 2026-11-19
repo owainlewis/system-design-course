@@ -73,3 +73,13 @@ test('DNS: a cold lookup asks root, then .com, then the domain, in that order', 
   const steps = lesson('dns').figures['first-lookup'].steps.filter(s => s.from === 'resolver' && s.to !== 'laptop').map(s => s.to);
   assert.deepEqual(steps, ['root', 'tld', 'auth']);
 });
+
+/* ---------- vertical and horizontal scaling ---------- */
+const VH = lesson('vertical-and-horizontal').figures;
+test('scaling: one fast server and three ordinary ones both keep up with 15 requests a second', () => {
+  for (const k of ['up', 'out']) assert.ok(p95(lat(lbSimulate(VH.shapes.scenarios[k].scene))) < 1, k);
+});
+test('scaling: losing the only server fails far more requests than losing one of three', () => {
+  const errs = k => lbSimulate(VH.failure.scenarios[k].scene).reqs.filter(q => q.failed).length;
+  assert.ok(errs('up') > 4 * errs('out'), `one server ${errs('up')}, one of three ${errs('out')}`);
+});

@@ -1,0 +1,376 @@
+{
+  "slug": "circuit-breakers",
+  "course": "System Design, Visually",
+  "part": "Reliability",
+  "title": "Circuit breakers",
+  "summary": "How a service stops calling a dependency that is failing, fails fast instead, and checks now and then whether it has recovered.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "The payments service is down. Every call to it from the checkout service waits for the full timeout, say 2 seconds, then fails. Checkout's workers spend their time waiting on calls that are certain to fail."
+        },
+        {
+          "p": "Checkout slows down for everyone, even for pages that don't need payments. Meanwhile the stream of calls, plus retries, makes it harder for payments to recover."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "A **circuit breaker** wraps calls to a dependency and watches their results. It has three states."
+        },
+        {
+          "list": [
+            "**Closed.** Calls go through as normal. The breaker counts failures. When failures pass a threshold, such as half of the calls in the last 10 seconds, it opens.",
+            "**Open.** Calls fail at once without being sent. The caller can return an error, a cached value, or a simpler page. After a wait, such as 30 seconds, the breaker moves to half-open.",
+            "**Half-open.** A few trial calls go through. If they succeed, the breaker closes. If they fail, it opens again and waits."
+          ]
+        },
+        {
+          "figure": "states",
+          "caption": "Three calls time out and the breaker opens. The next call fails at once. Later a trial call succeeds and the breaker closes."
+        },
+        {
+          "p": "While the breaker is open, the caller frees its workers right away, and the failing service gets a break from traffic."
+        },
+        {
+          "figure": "waits",
+          "caption": "Six requests while payments is down. Without a breaker each waits for the 2 s timeout. With a breaker, after three failures the rest fail at once."
+        },
+        {
+          "h3": "What to do when it is open"
+        },
+        {
+          "p": "Failing fast is only half the design. Decide what the user sees. A product page can hide recommendations. A checkout can accept the order and charge the card later. A login can't do much, and an error is the honest answer."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**The pattern is well documented.** Martin Fowler's [CircuitBreaker](https://martinfowler.com/bliki/CircuitBreaker.html) describes the closed, open and half-open states. Michael Nygard named the pattern in his book Release It!.",
+            "**Libraries implement it.** [Resilience4j](https://resilience4j.readme.io/docs/circuitbreaker) for Java counts failures over a sliding window of calls or seconds, and opens when the failure rate passes a threshold.",
+            "**Proxies can do it for you.** [Envoy](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking) limits connections and pending requests to each upstream cluster, and its outlier detection removes failing hosts.",
+            "**Tune it on real traffic.** A threshold that is too low opens on normal noise. One that is too high opens after the damage is done. Log every change of state so you can see how often it trips."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "A circuit breaker stops calling a dependency after repeated failures.",
+            "Open, it fails calls at once, which frees the caller and gives the dependency room to recover.",
+            "Half-open, it sends a few trial calls and closes again if they succeed.",
+            "Plan what the user sees while it is open."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "states": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "app",
+          "label": "Checkout",
+          "short": "Checkout",
+          "icon": "server"
+        },
+        {
+          "id": "cb",
+          "label": "Circuit breaker",
+          "short": "Breaker",
+          "icon": "balancer"
+        },
+        {
+          "id": "pay",
+          "label": "Payments",
+          "short": "Payments",
+          "icon": "server"
+        }
+      ],
+      "scenarios": {
+        "trip": {
+          "label": "Trip",
+          "note": "after three failures, calls fail at once",
+          "state": {
+            "cb": "closed, 0 failures",
+            "pay": "down"
+          },
+          "steps": [
+            {
+              "from": "app",
+              "to": "cb",
+              "label": "Charge 1"
+            },
+            {
+              "from": "cb",
+              "to": "pay",
+              "label": "Charge 1",
+              "kind": "lost"
+            },
+            {
+              "from": "cb",
+              "to": "app",
+              "label": "Timeout",
+              "kind": "fail",
+              "set": {
+                "cb": "closed, 1 failure"
+              }
+            },
+            {
+              "from": "app",
+              "to": "cb",
+              "label": "Charge 2"
+            },
+            {
+              "from": "cb",
+              "to": "pay",
+              "label": "Charge 2",
+              "kind": "lost"
+            },
+            {
+              "from": "cb",
+              "to": "app",
+              "label": "Timeout",
+              "kind": "fail",
+              "set": {
+                "cb": "closed, 2 failures"
+              }
+            },
+            {
+              "from": "app",
+              "to": "cb",
+              "label": "Charge 3"
+            },
+            {
+              "from": "cb",
+              "to": "pay",
+              "label": "Charge 3",
+              "kind": "lost"
+            },
+            {
+              "from": "cb",
+              "to": "app",
+              "label": "Timeout: 3 failures, open",
+              "kind": "fail",
+              "set": {
+                "cb": "open"
+              }
+            },
+            {
+              "from": "app",
+              "to": "cb",
+              "label": "Charge 4"
+            },
+            {
+              "from": "cb",
+              "to": "app",
+              "label": "Fail fast, not sent",
+              "kind": "fail"
+            }
+          ]
+        },
+        "recover": {
+          "label": "Recover",
+          "note": "one trial call succeeds and the breaker closes",
+          "state": {
+            "cb": "open"
+          },
+          "steps": [
+            {
+              "from": "cb",
+              "to": "cb",
+              "label": "30 s passed: half-open",
+              "set": {
+                "cb": "half-open"
+              }
+            },
+            {
+              "from": "app",
+              "to": "cb",
+              "label": "Charge"
+            },
+            {
+              "from": "cb",
+              "to": "pay",
+              "label": "Trial: charge"
+            },
+            {
+              "from": "pay",
+              "to": "cb",
+              "label": "OK",
+              "kind": "answer"
+            },
+            {
+              "from": "cb",
+              "to": "cb",
+              "label": "Trial passed: close",
+              "set": {
+                "cb": "closed, 0 failures"
+              }
+            },
+            {
+              "from": "cb",
+              "to": "app",
+              "label": "OK",
+              "kind": "answer"
+            }
+          ]
+        }
+      }
+    },
+    "waits": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "axis": 4200,
+      "legend": [
+        [
+          "stall",
+          "waiting for the timeout"
+        ],
+        [
+          "fail",
+          "failed at once"
+        ]
+      ],
+      "scenarios": {
+        "none": {
+          "label": "No breaker",
+          "note": "every request waits 2 s",
+          "rows": [
+            {
+              "label": "Request 1",
+              "s": 0,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 2",
+              "s": 400,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 3",
+              "s": 800,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 4",
+              "s": 1200,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 5",
+              "s": 1600,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 6",
+              "s": 2000,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            }
+          ]
+        },
+        "breaker": {
+          "label": "With a breaker",
+          "note": "after three failures the rest fail at once",
+          "rows": [
+            {
+              "label": "Request 1",
+              "s": 0,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 2",
+              "s": 400,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 3",
+              "s": 800,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 4",
+              "s": 1200,
+              "d": 30,
+              "tone": "fail"
+            },
+            {
+              "label": "Request 5",
+              "s": 1600,
+              "d": 30,
+              "tone": "fail"
+            },
+            {
+              "label": "Request 6",
+              "s": 2000,
+              "d": 30,
+              "tone": "fail"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "Martin Fowler: CircuitBreaker",
+      "url": "https://martinfowler.com/bliki/CircuitBreaker.html",
+      "note": "The pattern and its three states.",
+      "type": "engineering"
+    },
+    {
+      "label": "Microsoft: circuit breaker pattern",
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+      "note": "When to use it, and issues to plan for.",
+      "type": "docs"
+    },
+    {
+      "label": "Resilience4j: CircuitBreaker",
+      "url": "https://resilience4j.readme.io/docs/circuitbreaker",
+      "note": "Sliding windows, thresholds and state changes in a real library.",
+      "type": "docs"
+    },
+    {
+      "label": "Envoy: circuit breaking",
+      "url": "https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking",
+      "note": "Circuit breaking in a proxy.",
+      "type": "docs"
+    }
+  ]
+}

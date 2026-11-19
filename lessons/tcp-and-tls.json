@@ -1,0 +1,154 @@
+{
+  "slug": "tcp-and-tls",
+  "course": "System Design, Visually",
+  "part": "Foundations",
+  "title": "TCP and TLS",
+  "summary": "How a connection is set up, how TCP recovers lost data, and how TLS adds encryption, counted in round trips.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "The internet moves data in small packets, and it makes no promises about them. A packet can be lost, duplicated, or arrive after a packet sent later. Anyone on the path can also read it." },
+        { "p": "Applications need the opposite: every byte, in order, readable only by the other end. **TCP** gives you the reliable, ordered stream. **TLS** runs on top of TCP and adds encryption and proof of who the server is." },
+        { "p": "Both need a few messages back and forth before the first byte of your request can go. Each exchange costs a round trip, so setup time grows with distance." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "The TCP handshake" },
+        { "p": "Before sending data, the two ends agree on starting sequence numbers. The client sends a **SYN**, the server answers with a **SYN-ACK**, and the client confirms with an **ACK**. This is the three-way handshake in [RFC 9293](https://www.rfc-editor.org/rfc/rfc9293#section-3.5). It costs one round trip before the client can send data." },
+        { "h3": "The TLS handshake" },
+        { "p": "TLS then agrees on encryption keys. The server sends a **certificate**, which proves it owns the name the client asked for. The handshake ends with a **Finished** message from each side, which checks that nobody changed the messages in between." },
+        { "p": "TLS 1.2 needs two round trips for a full handshake. [TLS 1.3](https://www.rfc-editor.org/rfc/rfc8446) needs one, because the client sends its key share in its first message instead of waiting to learn what the server supports." },
+        { "figure": "handshakes", "caption": "Opening an HTTPS connection with TLS 1.2, with TLS 1.3, and resuming a TLS 1.3 session with 0-RTT data." },
+        { "p": "With **0-RTT**, a client that has talked to the server before can send its request in its first TLS message. [RFC 8446](https://www.rfc-editor.org/rfc/rfc8446#section-8) warns that an attacker can replay 0-RTT data, so it suits only requests that are safe to repeat." },
+        { "h3": "How TCP recovers lost data" },
+        { "p": "TCP numbers every byte. The receiver acknowledges the next byte it expects. If a segment goes missing, the sender notices that its bytes were never acknowledged and sends them again." },
+        { "p": "The receiver must hand bytes to the application in order. Bytes that arrive after a gap wait in a buffer until the gap is filled. This is called **head-of-line blocking**, and it matters again in the HTTP lesson." },
+        { "figure": "loss", "caption": "Bytes 1001 to 2000 are lost. Bytes 2001 to 3000 arrive but wait until the missing bytes are sent again." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Reuse connections.** A connection that is already open skips both handshakes. HTTP/1.1 keeps connections open by default, as [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112#section-9.3) describes.",
+          "**Terminate TLS close to users.** The handshake costs round trips to whoever ends the TLS connection. A CDN or load balancer near the user can do that, which shortens each round trip.",
+          "**QUIC merges the two handshakes.** HTTP/3 runs on QUIC, which sets up transport and TLS 1.3 encryption together in one round trip, as [RFC 9001](https://www.rfc-editor.org/rfc/rfc9001) describes.",
+          "**Certificates expire.** A server's certificate is valid for a fixed period. An expired certificate makes browsers refuse the connection, so renew certificates automatically."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Set the round trip time and the TLS version, and see how long the client waits before the first byte of the response." },
+        { "figure": "playground", "caption": "Time to the first byte of a response on a new connection, ignoring server work." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "TCP turns lost, reordered packets into a reliable, ordered stream of bytes.",
+          "The TCP handshake costs one round trip. TLS 1.2 adds two more, TLS 1.3 adds one.",
+          "A lost segment holds up every byte behind it until it is sent again.",
+          "Reusing open connections avoids the handshakes entirely."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "handshakes": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "client", "label": "Browser", "short": "Browser", "icon": "browser" },
+        { "id": "server", "label": "Server", "short": "Server", "icon": "server" }
+      ],
+      "scenarios": {
+        "tls12": {
+          "label": "TLS 1.2",
+          "note": "3 round trips before the request",
+          "steps": [
+            { "from": "client", "to": "server", "label": "SYN" },
+            { "from": "server", "to": "client", "label": "SYN-ACK", "kind": "refer" },
+            { "from": "client", "to": "server", "label": "ACK, ClientHello" },
+            { "from": "server", "to": "client", "label": "ServerHello, certificate", "kind": "refer" },
+            { "from": "client", "to": "server", "label": "Key exchange, Finished" },
+            { "from": "server", "to": "client", "label": "Finished", "kind": "refer" },
+            { "from": "client", "to": "server", "label": "GET /" },
+            { "from": "server", "to": "client", "label": "200 OK", "kind": "answer" }
+          ]
+        },
+        "tls13": {
+          "label": "TLS 1.3",
+          "note": "2 round trips before the request",
+          "steps": [
+            { "from": "client", "to": "server", "label": "SYN" },
+            { "from": "server", "to": "client", "label": "SYN-ACK", "kind": "refer" },
+            { "from": "client", "to": "server", "label": "ACK, ClientHello + key share" },
+            { "from": "server", "to": "client", "label": "ServerHello, certificate, Finished", "kind": "refer" },
+            { "from": "client", "to": "server", "label": "Finished, GET /" },
+            { "from": "server", "to": "client", "label": "200 OK", "kind": "answer" }
+          ]
+        },
+        "zero": {
+          "label": "TLS 1.3, 0-RTT",
+          "note": "1 round trip before the request",
+          "steps": [
+            { "from": "client", "to": "server", "label": "SYN" },
+            { "from": "server", "to": "client", "label": "SYN-ACK", "kind": "refer" },
+            { "from": "client", "to": "server", "label": "ACK, ClientHello + GET /" },
+            { "from": "server", "to": "client", "label": "ServerHello, Finished, 200 OK", "kind": "answer" }
+          ]
+        }
+      }
+    },
+    "loss": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "client", "label": "Sender", "short": "Sender", "icon": "browser" },
+        { "id": "server", "label": "Receiver", "short": "Receiver", "icon": "server" }
+      ],
+      "steps": [
+        { "from": "client", "to": "server", "label": "Bytes 1 to 1000", "set": { "server": "has 1 to 1000" } },
+        { "from": "client", "to": "server", "label": "Bytes 1001 to 2000", "kind": "lost" },
+        { "from": "client", "to": "server", "label": "Bytes 2001 to 3000", "set": { "server": "has 1 to 1000; 2001 to 3000 waiting" } },
+        { "from": "server", "to": "client", "label": "ACK 1001: next byte I need", "kind": "refer" },
+        { "from": "client", "to": "client", "label": "1001 never acknowledged" },
+        { "from": "client", "to": "server", "label": "Bytes 1001 to 2000, again", "set": { "server": "has 1 to 3000" } },
+        { "from": "server", "to": "client", "label": "ACK 3001", "kind": "answer" }
+      ]
+    },
+    "playground": {
+      "kind": "calc",
+      "controls": [
+        { "type": "range", "key": "rtt", "label": "Round trip (ms)", "min": 5, "max": 300, "step": 5 },
+        { "type": "toggle", "key": "tls", "label": "TLS", "options": [[2, "1.2"], [1, "1.3"], [0, "1.3 with 0-RTT"]] }
+      ],
+      "ctrl": { "rtt": 80, "tls": 2 },
+      "rows": [
+        { "label": "TCP handshake, in ms", "expr": "rtt", "show": "1 round trip", "format": "d0" },
+        { "label": "TLS handshake, in ms", "expr": "tls * rtt", "show": "{tls} round trips before the request can go", "format": "d0" },
+        { "label": "Request and response, in ms", "expr": "rtt", "show": "1 round trip", "format": "d0" },
+        { "key": "ttfb", "label": "First byte of the response, in ms", "expr": "(2 + tls) * rtt", "show": "(2 + {tls}) × {rtt}", "format": "d0", "tone": "accent" },
+        { "label": "Next request on the open connection", "expr": "rtt", "show": "1 round trip, no handshakes", "format": "d0" }
+      ]
+    }
+  },
+  "references": [
+    { "label": "RFC 9293: Transmission Control Protocol", "url": "https://www.rfc-editor.org/rfc/rfc9293", "note": "The three-way handshake, sequence numbers and retransmission.", "type": "standard" },
+    { "label": "RFC 8446: TLS 1.3", "url": "https://www.rfc-editor.org/rfc/rfc8446", "note": "The one round trip handshake, 0-RTT data and its replay risk.", "type": "standard" },
+    { "label": "RFC 5246: TLS 1.2", "url": "https://www.rfc-editor.org/rfc/rfc5246", "note": "The older handshake, with two round trips.", "type": "standard" },
+    { "label": "RFC 9001: Using TLS to secure QUIC", "url": "https://www.rfc-editor.org/rfc/rfc9001", "note": "How QUIC combines the transport and TLS handshakes.", "type": "standard" }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "slug": "message-queues",
+  "course": "System Design, Visually",
+  "part": "Async and messaging",
+  "title": "Message queues",
+  "summary": "How a queue lets one service hand work to another without waiting, absorbs bursts, and makes sure each job is done even if a worker crashes.",
+  "minutes": 9,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A user uploads a video. The app has to resize it, make thumbnails and send an email. Doing all of that inside the request takes minutes, and the user waits the whole time." },
+        { "p": "Traffic is also uneven. A sale or a news story can bring several times the usual load for a few minutes. If every request needs a worker straight away, you need enough workers for the worst minute of the year, or requests fail during it." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "A **message queue** sits between a **producer**, the service that has work to hand off, and **consumers**, the workers that do it. The producer puts a message on the queue and moves on. Consumers take messages off when they are ready." },
+        { "p": "The two sides no longer have to run at the same speed. During a burst the queue grows. When the burst ends, consumers keep working and the queue drains. Nothing is lost, but messages wait longer while the queue is long." },
+        { "figure": "burst", "caption": "Two consumers handle about 4 messages a second. For 3 seconds, 9 a second arrive. The queue grows, then drains after the burst." },
+        { "h3": "Competing consumers" },
+        { "p": "Several consumers can read from one queue. Each message goes to only one of them, so adding consumers adds throughput. This is the usual way to scale background work." },
+        { "figure": "workers", "caption": "Three consumers share one queue. Each message is handed to exactly one of them." },
+        { "h3": "Acknowledging a message" },
+        { "p": "A consumer that crashes halfway through a job must not lose it. So the queue doesn't delete a message when it hands it out. The consumer **acknowledges** it after the work is done, and only then is it removed." },
+        { "p": "If no acknowledgement arrives in time, the queue hands the message to another consumer. This means a message can be processed twice, which the delivery guarantees lesson covers." },
+        { "p": "A message that fails every time, such as one with bad data, would be retried forever. Queues move it to a **dead-letter queue** after a set number of attempts, so someone can look at it later." }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Each consumer takes about half a second per message. Change the number of consumers and the burst rate, and watch how long messages wait." },
+        { "figure": "playground", "caption": "A burst from 3 to 6 seconds. With too few consumers the queue keeps growing until the burst ends." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**SQS hides a message while it is worked on.** Amazon SQS uses a [visibility timeout](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html). The consumer must delete the message before it ends, or the message becomes visible to other consumers again.",
+          "**Dead-letter queues are built in.** SQS moves a message to a [dead-letter queue](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html) after it has been received a set number of times.",
+          "**RabbitMQ uses explicit acks.** RabbitMQ's [consumer acknowledgements](https://www.rabbitmq.com/docs/confirms) let a consumer confirm each message, and requeue messages from a consumer whose connection drops.",
+          "**Watch the age of the oldest message.** Queue length alone can mislead. The age of the oldest message tells you how far behind consumers are, and is a good signal for adding consumers."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A queue lets a producer hand off work and move on, while consumers work at their own pace.",
+          "Bursts make the queue grow instead of failing requests. Messages wait longer until it drains.",
+          "Several consumers can share a queue, and each message goes to one of them.",
+          "Consumers acknowledge a message after the work is done, so a crash doesn't lose it. Repeated failures go to a dead-letter queue."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "burst": {
+      "kind": "queue",
+      "still": 0.45,
+      "scene": { "period": 14, "start": 0, "end": 12, "schedule": [{ "from": 0, "to": 3, "rate": 3 }, { "from": 3, "to": 6, "rate": 9 }, { "from": 6, "to": 12, "rate": 2 }], "consumers": 2, "work": 0.5 }
+    },
+    "workers": {
+      "kind": "topic",
+      "still": 0.6,
+      "scene": { "mode": "queue", "period": 11, "rate": 2, "count": 18, "broker": "Queue", "targets": [{ "label": "Consumer 1" }, { "label": "Consumer 2" }, { "label": "Consumer 3" }] }
+    },
+    "playground": {
+      "kind": "queue",
+      "still": 0.5,
+      "controls": [
+        { "type": "range", "key": "consumers", "label": "Consumers", "min": 1, "max": 6 },
+        { "type": "range", "key": "rate", "label": "Burst rate (messages a second)", "min": 2, "max": 14 }
+      ],
+      "ctrl": { "consumers": 2, "rate": 9 },
+      "scene": { "period": 14, "start": 0, "end": 12, "schedule": [{ "from": 0, "to": 3, "rate": 3 }, { "from": 3, "to": 6, "rate": 9 }, { "from": 6, "to": 12, "rate": 2 }], "consumers": 2, "work": 0.5 }
+    }
+  },
+  "references": [
+    { "label": "Amazon SQS: visibility timeout", "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html", "note": "How SQS hides a message while a consumer works on it.", "type": "docs" },
+    { "label": "Amazon SQS: dead-letter queues", "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html", "note": "Moving messages that keep failing out of the main queue.", "type": "docs" },
+    { "label": "RabbitMQ: consumer acknowledgements and publisher confirms", "url": "https://www.rabbitmq.com/docs/confirms", "note": "Acks, requeueing, and what happens when a consumer disconnects.", "type": "docs" },
+    { "label": "Microsoft: competing consumers pattern", "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers", "note": "Several consumers sharing one queue.", "type": "docs" }
+  ]
+}

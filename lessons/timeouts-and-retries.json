@@ -1,0 +1,563 @@
+{
+  "slug": "timeouts-and-retries",
+  "course": "System Design, Visually",
+  "part": "Reliability",
+  "title": "Timeouts and retries",
+  "summary": "Why every network call needs a timeout, when to retry, and how backoff and jitter stop retries from making an outage worse.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "A service calls another over the network. Usually the answer comes back in 50 ms. Sometimes the other service is overloaded, a machine has hung, or a packet is lost, and no answer comes at all."
+        },
+        {
+          "p": "Without a limit, the caller waits forever. Its thread or connection stays busy, and its own callers wait too. A single stuck dependency can tie up every worker in every service above it."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "h3": "Timeouts"
+        },
+        {
+          "p": "A **timeout** is the longest the caller will wait. When it passes, the caller stops waiting and treats the call as failed. Set it from the dependency's normal latency: a little above its 99th percentile is a common start, so slow but healthy calls still finish."
+        },
+        {
+          "p": "A timeout doesn't tell you whether the work happened. The request may have been done and only the answer lost, as the idempotency lesson shows."
+        },
+        {
+          "h3": "Retries"
+        },
+        {
+          "p": "Many failures are brief: one bad server, one dropped packet. Trying again, often on another server, usually works. A short timeout and one retry often finish sooner than one long wait."
+        },
+        {
+          "figure": "timeout",
+          "caption": "The first attempt hangs. Without a timeout the caller waits 10 s. With a 1 s timeout and one retry, the call finishes in 1.35 s."
+        },
+        {
+          "p": "Only retry what is safe to repeat: reads, idempotent writes, or writes with an idempotency key. And only retry errors that might pass. A `400 Bad Request` will fail again; a timeout or a `503` might not."
+        },
+        {
+          "h3": "Backoff and jitter"
+        },
+        {
+          "p": "When a service is overloaded, retries add load. If every client retries straight away, the extra traffic keeps it down. **Exponential backoff** waits longer before each retry: 1 s, then 2 s, then 4 s."
+        },
+        {
+          "p": "Backoff alone keeps clients in step. They all failed at the same moment, so they all retry at the same moment. **Jitter** picks a random wait up to the backoff, which spreads the retries out."
+        },
+        {
+          "figure": "jitter",
+          "caption": "Six clients fail at the same moment and retry three times. With fixed backoff every retry lands at once. With jitter they spread out."
+        },
+        {
+          "h3": "Retries multiply"
+        },
+        {
+          "p": "In a chain of services, each layer may retry. If each of three layers makes up to 3 attempts, the service at the bottom can get 27 calls for one user request. Retry at one layer, usually the one closest to the user or the one that knows the call is safe."
+        },
+        {
+          "figure": "amplify",
+          "caption": "Calls that reach the bottom service when every layer retries."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**AWS writes this down.** The Amazon Builders' Library article [Timeouts, retries, and backoff with jitter](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/) covers choosing timeouts, retrying at one layer, and adding jitter.",
+            "**Full jitter works well.** Marc Brooker's [Exponential Backoff And Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) compares backoff strategies and finds that adding jitter cuts the total number of calls substantially.",
+            "**gRPC passes deadlines along.** Some gRPC implementations pass a [deadline](https://grpc.io/docs/guides/deadlines/) on to outgoing calls automatically, so services further down know how long the caller will still wait.",
+            "**Cap retries with a budget.** Google's SRE book, in [Addressing Cascading Failures](https://sre.google/sre-book/addressing-cascading-failures/), suggests limiting retries per request and across the whole server, so retries can't grow without bound.",
+            "**Respect Retry-After.** A server that returns `429` or `503` can send `Retry-After`, defined in [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3). Clients should wait at least that long."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "Every network call needs a timeout, set a little above the dependency's normal slow case.",
+            "Retry only operations that are safe to repeat, and only errors that might pass.",
+            "Exponential backoff with jitter spreads retries out instead of hitting a struggling service all at once.",
+            "Retry at one layer, and cap retries, because retries at every layer multiply."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "timeout": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "axis": 10500,
+      "legend": [
+        [
+          "net",
+          "answered"
+        ],
+        [
+          "stall",
+          "waiting, no answer"
+        ],
+        [
+          "wait",
+          "backoff"
+        ]
+      ],
+      "scenarios": {
+        "none": {
+          "label": "No timeout",
+          "note": "the caller waits 10 s, then the user gives up",
+          "rows": [
+            {
+              "label": "Attempt 1",
+              "s": 0,
+              "d": 10000,
+              "tone": "stall",
+              "text": "no answer"
+            }
+          ]
+        },
+        "retry": {
+          "label": "1 s timeout, one retry",
+          "note": "done in 1.35 s",
+          "rows": [
+            {
+              "label": "Attempt 1",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 1000,
+                  "tone": "stall"
+                },
+                {
+                  "s": 1000,
+                  "d": 60,
+                  "tone": "fail"
+                }
+              ]
+            },
+            {
+              "label": "Backoff",
+              "s": 1060,
+              "d": 140,
+              "tone": "wait"
+            },
+            {
+              "label": "Attempt 2, another server",
+              "s": 1200,
+              "d": 150,
+              "tone": "net",
+              "text": "150"
+            }
+          ]
+        }
+      }
+    },
+    "jitter": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "axis": 7700,
+      "legend": [
+        [
+          "net",
+          "attempt"
+        ]
+      ],
+      "scenarios": {
+        "fixed": {
+          "label": "Fixed backoff",
+          "note": "every retry lands at the same moment",
+          "rows": [
+            {
+              "label": "Client 1",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1150,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 3300,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 7450,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 2",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1150,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 3300,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 7450,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 3",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1150,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 3300,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 7450,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 4",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1150,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 3300,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 7450,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 5",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1150,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 3300,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 7450,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 6",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1150,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 3300,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 7450,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            }
+          ]
+        },
+        "jitter": {
+          "label": "Backoff with jitter",
+          "note": "retries spread out",
+          "rows": [
+            {
+              "label": "Client 1",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 390,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 750,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 2480,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 2",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 300,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 580,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 2340,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 3",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1070,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 2820,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 6030,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 4",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 370,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1590,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 2850,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 5",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 320,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 680,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1690,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            },
+            {
+              "label": "Client 6",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 1080,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 2890,
+                  "d": 150,
+                  "tone": "net"
+                },
+                {
+                  "s": 6270,
+                  "d": 150,
+                  "tone": "net"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "amplify": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "layers",
+          "label": "Layers that retry",
+          "min": 1,
+          "max": 5
+        },
+        {
+          "type": "range",
+          "key": "tries",
+          "label": "Attempts per layer",
+          "min": 1,
+          "max": 5
+        }
+      ],
+      "ctrl": {
+        "layers": 3,
+        "tries": 3
+      },
+      "rows": [
+        {
+          "label": "Calls at the bottom for one request, at worst",
+          "expr": "Math.pow(tries, layers)",
+          "show": "{tries} attempts, multiplied over {layers} layers",
+          "format": "d0",
+          "tone": "accent"
+        },
+        {
+          "label": "With retries at one layer only",
+          "expr": "tries",
+          "show": "{tries} attempts",
+          "format": "d0"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "Amazon Builders' Library: Timeouts, retries, and backoff with jitter",
+      "url": "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/",
+      "note": "Choosing timeouts, where to retry, and jitter.",
+      "type": "engineering"
+    },
+    {
+      "label": "Marc Brooker: Exponential backoff and jitter",
+      "url": "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/",
+      "note": "A comparison of backoff strategies.",
+      "type": "engineering"
+    },
+    {
+      "label": "gRPC: deadlines",
+      "url": "https://grpc.io/docs/guides/deadlines/",
+      "note": "Deadlines that travel with a request.",
+      "type": "docs"
+    },
+    {
+      "label": "Google SRE book: Addressing cascading failures",
+      "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+      "note": "Retry budgets, deadlines and how overload spreads.",
+      "type": "engineering"
+    }
+  ]
+}

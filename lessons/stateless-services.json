@@ -1,0 +1,123 @@
+{
+  "slug": "stateless-services",
+  "course": "System Design, Visually",
+  "part": "Scaling the web tier",
+  "title": "Stateless services",
+  "summary": "Why app servers should keep no user data in memory, and where that data goes instead.",
+  "minutes": 7,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A user logs in. The server that handled the login stores the user's session in its own memory and sends back a cookie with the session's ID. The next request goes through the load balancer and lands on a different server." },
+        { "p": "That server has never heard of the session. To it, the user is logged out. Adding servers made the app break." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "A **stateless** server keeps nothing between requests that another server would need. Each request carries what is needed to handle it, or the server fetches it from a shared place. Then any server can handle any request." },
+        { "figure": "sessions", "caption": "Three ways to handle a login across two servers. Only the shared session store survives both a different server and a failed one." },
+        { "h3": "Session in memory" },
+        { "p": "The session lives on server 1. When the load balancer sends the next request to server 2, the session isn't there and the request fails." },
+        { "h3": "Sticky sessions" },
+        { "p": "The load balancer can remember which server each user went to, usually with a cookie, and keep sending them there. This works until server 1 fails or is replaced. Then its sessions are gone, and its users are logged out." },
+        { "h3": "Shared session store" },
+        { "p": "Every server writes sessions to a shared store, such as a database or an in-memory key-value store. Any server can read any session, so the load balancer can send each request anywhere, and losing a server loses no sessions." },
+        { "h3": "Or put the state in the request" },
+        { "p": "Another option is to put the session data itself in a token that the client sends with every request. The server signs the token so it can detect changes. A **JSON Web Token**, defined in [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519), is a common format. The cost is that a signed token stays valid until it expires, so logging a user out early needs extra work." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**The Twelve-Factor App says it plainly.** Its [processes rule](https://12factor.net/processes) says processes are stateless and share nothing, and calls sticky sessions a violation of that rule.",
+          "**Load balancers offer stickiness anyway.** [AWS Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html) can bind a user's session to a target with a cookie. It is useful for old applications that can't move their state.",
+          "**Uploads and files are state too.** A file written to one server's local disk is missing on the others. Put files in object storage, covered in the object storage lesson.",
+          "**Stateless doesn't mean no state.** The state still exists. It moves to a database, a cache or the client, where it can be shared and kept safe."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A stateless server keeps nothing between requests that another server would need.",
+          "Sessions in server memory break as soon as there is a second server.",
+          "Sticky sessions hide the problem until a server fails.",
+          "Move state to a shared store, or into a signed token the client sends back."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "sessions": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "browser", "label": "Browser", "short": "Browser", "icon": "browser" },
+        { "id": "lb", "label": "Load balancer", "short": "LB", "icon": "balancer" },
+        { "id": "s1", "label": "Server 1", "short": "Server 1", "icon": "server" },
+        { "id": "s2", "label": "Server 2", "short": "Server 2", "icon": "server" },
+        { "id": "store", "label": "Session store", "short": "Store", "icon": "store" }
+      ],
+      "scenarios": {
+        "memory": {
+          "label": "Session in memory",
+          "note": "the second server doesn't know the user",
+          "steps": [
+            { "from": "browser", "to": "lb", "label": "Log in" },
+            { "from": "lb", "to": "s1", "label": "Log in" },
+            { "from": "s1", "to": "s1", "label": "Keep session abc", "set": { "s1": "session abc" } },
+            { "from": "s1", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
+            { "from": "lb", "to": "s2", "label": "GET /orders, abc" },
+            { "from": "s2", "to": "browser", "label": "401: who are you?", "kind": "fail" }
+          ]
+        },
+        "sticky": {
+          "label": "Sticky sessions",
+          "note": "works until server 1 fails",
+          "steps": [
+            { "from": "browser", "to": "lb", "label": "Log in" },
+            { "from": "lb", "to": "s1", "label": "Log in" },
+            { "from": "s1", "to": "s1", "label": "Keep session abc", "set": { "s1": "session abc" } },
+            { "from": "s1", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
+            { "from": "lb", "to": "s1", "label": "Same server as before" },
+            { "from": "s1", "to": "browser", "label": "200 OK", "kind": "answer" },
+            { "from": "s1", "to": "s1", "label": "Server 1 fails", "kind": "fail", "set": { "s1": "down, session lost" } },
+            { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
+            { "from": "lb", "to": "s2", "label": "GET /orders, abc" },
+            { "from": "s2", "to": "browser", "label": "401: who are you?", "kind": "fail" }
+          ]
+        },
+        "shared": {
+          "label": "Shared session store",
+          "note": "any server can handle any request",
+          "steps": [
+            { "from": "browser", "to": "lb", "label": "Log in" },
+            { "from": "lb", "to": "s1", "label": "Log in" },
+            { "from": "s1", "to": "store", "label": "Save session abc", "set": { "store": "session abc" } },
+            { "from": "s1", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
+            { "from": "lb", "to": "s2", "label": "GET /orders, abc" },
+            { "from": "s2", "to": "store", "label": "Session abc?" },
+            { "from": "store", "to": "s2", "label": "User 7", "kind": "answer" },
+            { "from": "s2", "to": "browser", "label": "200 OK", "kind": "answer" }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "The Twelve-Factor App: processes", "url": "https://12factor.net/processes", "note": "Stateless, share-nothing processes, and why sticky sessions break the rule.", "type": "engineering" },
+    { "label": "AWS: sticky sessions for an Application Load Balancer", "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html", "note": "How a load balancer binds a user to one target with a cookie.", "type": "docs" },
+    { "label": "RFC 7519: JSON Web Token", "url": "https://www.rfc-editor.org/rfc/rfc7519", "note": "A signed token format for carrying claims, such as who the user is.", "type": "standard" }
+  ]
+}

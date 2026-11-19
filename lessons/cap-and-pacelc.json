@@ -1,0 +1,132 @@
+{
+  "slug": "cap-and-pacelc",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "CAP and PACELC",
+  "summary": "What a replicated database must give up when the network splits, and the trade-off it makes the rest of the time.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A replicated database keeps copies on machines that talk over a network. Networks fail. A switch dies, a cable is cut, or a link between two datacenters drops. Each side can still serve clients, but they can't reach each other." },
+        { "p": "A client writes on one side. Another client reads on the other side. The database can't make the second client see the write, because the write never crossed. It has to choose what to do." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "CAP" },
+        { "p": "The CAP theorem names three properties. **Consistency**: every read sees the latest write. **Availability**: every request to a working node gets an answer. **Partition tolerance**: the system keeps running when messages between nodes are lost." },
+        { "p": "[Gilbert and Lynch proved](https://doi.org/10.1145/564585.564601) that during a partition a system can't have both consistency and availability. Partitions aren't optional on a real network, so the real choice is what to give up while one lasts." },
+        { "figure": "partition", "caption": "Node A and node B can't reach each other. A consistent system refuses the write it can't replicate. An available system accepts it, and a reader on the other side gets the old value." },
+        { "list": [
+          "**Choose consistency** and some requests fail during the partition. Banking ledgers and inventory counts often choose this.",
+          "**Choose availability** and every request gets an answer, but some answers are stale and conflicting writes must be merged later. Shopping carts and like counts often choose this."
+        ] },
+        { "h3": "PACELC" },
+        { "p": "Partitions are rare. CAP says nothing about the rest of the time. Daniel Abadi's [PACELC](https://doi.org/10.1109/MC.2012.33) adds the missing half: if there is a Partition, choose Availability or Consistency; Else, choose Latency or Consistency." },
+        { "p": "Even with a healthy network, a consistent read or write must wait for other replicas, some of which may be far away. Answering from the nearest replica is faster, but may be stale." },
+        { "figure": "latency", "caption": "A write from Europe to a database with replicas in Europe and the US. Waiting for the US replica keeps them consistent and costs a transatlantic round trip, assumed here to be 80 ms." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**It is a spectrum, not a switch.** Eric Brewer proposed CAP. In [CAP Twelve Years Later](https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/) he wrote that the \"two of three\" framing misleads. Systems can make the choice per operation, and recover after a partition.",
+          "**Many databases let you choose per request.** Leaderless stores let each read and write set how many replicas must answer, as in the replication lesson. More replicas is more consistent and slower.",
+          "**Dynamo chose availability.** Amazon's [Dynamo paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf) describes accepting writes during failures and reconciling conflicting versions later, so customers can always add to their cart.",
+          "**Decide per kind of data.** The same system can make different choices for different data. Ask what a stale or failed answer costs for each."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "During a network partition, a replicated system must refuse some requests or serve possibly stale data.",
+          "Partitions happen, so CAP is a choice between consistency and availability while one lasts.",
+          "PACELC adds that without a partition, the trade-off is between latency and consistency.",
+          "Make the choice per operation, based on what a stale or failed answer costs."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "partition": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "c1", "label": "Client 1", "short": "Client 1", "icon": "browser" },
+        { "id": "a", "label": "Node A", "short": "Node A", "icon": "store" },
+        { "id": "b", "label": "Node B", "short": "Node B", "icon": "store" },
+        { "id": "c2", "label": "Client 2", "short": "Client 2", "icon": "browser" }
+      ],
+      "scenarios": {
+        "cp": {
+          "label": "Choose consistency",
+          "note": "no stale reads, but the write failed",
+          "state": { "a": "stock: 5", "b": "stock: 5" },
+          "steps": [
+            { "from": "c1", "to": "a", "label": "SET stock = 4" },
+            { "from": "a", "to": "b", "label": "Replicate", "kind": "lost" },
+            { "from": "a", "to": "a", "label": "Can't reach B" },
+            { "from": "a", "to": "c1", "label": "Error: try later", "kind": "fail" },
+            { "from": "c2", "to": "b", "label": "GET stock" },
+            { "from": "b", "to": "c2", "label": "5", "kind": "answer" }
+          ]
+        },
+        "ap": {
+          "label": "Choose availability",
+          "note": "both answered, but client 2 read a stale value",
+          "state": { "a": "stock: 5", "b": "stock: 5" },
+          "steps": [
+            { "from": "c1", "to": "a", "label": "SET stock = 4", "set": { "a": "stock: 4" } },
+            { "from": "a", "to": "b", "label": "Replicate", "kind": "lost" },
+            { "from": "a", "to": "c1", "label": "OK", "kind": "answer" },
+            { "from": "c2", "to": "b", "label": "GET stock" },
+            { "from": "b", "to": "c2", "label": "5, stale", "kind": "fail" },
+            { "from": "a", "to": "a", "label": "Sync with B after the partition" }
+          ]
+        }
+      }
+    },
+    "latency": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["net", "network"], ["work", "database work"]],
+      "scenarios": {
+        "consistent": {
+          "label": "Wait for both replicas",
+          "note": "consistent, slower",
+          "rows": [
+            { "label": "Client to Europe replica", "spans": [{ "s": 0, "d": 5, "tone": "net" }, { "s": 87, "d": 5, "tone": "net" }] },
+            { "label": "Europe replica writes", "depth": 1, "s": 5, "d": 2, "tone": "work" },
+            { "label": "Europe to US and back", "depth": 1, "s": 7, "d": 80, "tone": "net", "text": "80" }
+          ]
+        },
+        "fast": {
+          "label": "Answer after the nearest",
+          "note": "fast, but the US replica is behind for a while",
+          "rows": [
+            { "label": "Client to Europe replica", "spans": [{ "s": 0, "d": 5, "tone": "net" }, { "s": 7, "d": 5, "tone": "net" }] },
+            { "label": "Europe replica writes", "depth": 1, "s": 5, "d": 2, "tone": "work" },
+            { "label": "Copy to US, later", "depth": 1, "s": 12, "d": 40, "tone": "wait" }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "Gilbert and Lynch: Brewer's conjecture and the feasibility of consistent, available, partition-tolerant web services (2002)", "url": "https://doi.org/10.1145/564585.564601", "note": "The proof of the CAP theorem.", "type": "paper" },
+    { "label": "Eric Brewer: CAP twelve years later", "url": "https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/", "note": "Why \"two of three\" misleads, and how systems handle partitions.", "type": "paper" },
+    { "label": "Daniel Abadi: Consistency tradeoffs in modern distributed database system design (2012)", "url": "https://doi.org/10.1109/MC.2012.33", "note": "PACELC: the latency and consistency trade-off without partitions.", "type": "paper" },
+    { "label": "DeCandia et al.: Dynamo (SOSP 2007)", "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf", "note": "A store that chose availability and reconciles conflicts later.", "type": "paper" }
+  ]
+}

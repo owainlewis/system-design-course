@@ -1,0 +1,98 @@
+{
+  "slug": "vertical-and-horizontal",
+  "course": "System Design, Visually",
+  "part": "Scaling the web tier",
+  "title": "Vertical and horizontal scaling",
+  "summary": "Two ways to handle more load: a bigger machine or more machines, and what each costs when something fails.",
+  "minutes": 7,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "Every server has a limit. When requests arrive faster than it can finish them, they queue, and response times climb until clients give up. The load balancing lesson shows this happening to one server at 9 requests a second." },
+        { "p": "There are two ways to raise the limit. **Vertical scaling** means a bigger machine: more CPU cores, more memory, faster disks. **Horizontal scaling** means more machines sharing the work." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "Same capacity, two shapes" },
+        { "p": "Here is one server three times faster than the others, and three ordinary servers behind a load balancer. Both can finish about 20 requests a second, and both get 15." },
+        { "figure": "shapes", "caption": "15 requests a second, sent to one fast server or spread over three ordinary ones. Both keep up." },
+        { "p": "The big server answers each request faster, because each request gets a faster machine. The three servers answer more slowly, but between them they finish as many requests." },
+        { "h3": "What happens when a server fails" },
+        { "p": "The difference shows up when a machine fails. With one server, every request fails until it comes back. With three, the load balancer stops using the failed one and the other two carry on, at reduced capacity." },
+        { "figure": "failure", "caption": "One server fails at 3 s. Compare the errors when it is the only server with the errors when it is one of three." },
+        { "h3": "The trade-off" },
+        { "list": [
+          "**Vertical scaling is simpler.** Your code doesn't change, and there is no load balancer or shared state to think about. But machines come in fixed sizes, the largest size is a hard ceiling, and one machine is one thing to fail.",
+          "**Horizontal scaling has no fixed ceiling.** You add machines as load grows and survive the loss of any one. But the servers must not keep state that others need, which is the subject of the next lesson."
+        ] }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Web servers go horizontal, databases often go vertical first.** A server that keeps no state is easy to copy. A database holds the state, and splitting it across machines is hard. The sharding lesson covers how.",
+          "**Cloud platforms add servers for you.** [Amazon EC2 Auto Scaling](https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html) keeps a group of instances between a minimum and a maximum size, adding or removing them as demand changes.",
+          "**Kubernetes does the same for containers.** Its [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) changes the number of copies of a workload to match a metric such as average CPU use.",
+          "**Plan for losing one.** With three servers each running at 90% of capacity, losing one overloads the other two. Leave enough room that the rest can absorb the failed server's share."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Choose how many servers sit behind the load balancer and how much traffic arrives. Each server finishes about 6 or 7 requests a second." },
+        { "figure": "playground", "caption": "Add servers until the longest queue stays short. Then raise the traffic again." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "Vertical scaling buys a bigger machine. Horizontal scaling adds more machines.",
+          "A bigger machine answers each request faster but has a ceiling and fails as one unit.",
+          "More machines survive the loss of one, but need a load balancer and servers that keep no local state.",
+          "Leave enough spare capacity that the remaining servers can carry a failed server's share."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "shapes": {
+      "kind": "lb",
+      "scenarios": {
+        "up": { "label": "One server, 3 times faster", "scene": { "period": 9, "rate": 15, "start": 0.3, "end": 7.2, "work": 0.15, "algo": "rr", "servers": [{ "label": "Big server", "speed": 3 }] } },
+        "out": { "label": "Three servers", "scene": { "period": 9, "rate": 15, "start": 0.3, "end": 7.2, "work": 0.15, "algo": "rr", "servers": [{ "speed": 1 }, { "speed": 1 }, { "speed": 1 }] } }
+      }
+    },
+    "failure": {
+      "kind": "lb",
+      "scenarios": {
+        "up": { "label": "One big server", "scene": { "period": 9, "rate": 15, "start": 0.3, "end": 7.6, "work": 0.15, "algo": "rr", "servers": [{ "label": "Big server", "speed": 3 }], "health": { "server": 0, "down": 3, "detect": 1.5 } } },
+        "out": { "label": "One of three servers", "scene": { "period": 9, "rate": 15, "start": 0.3, "end": 7.6, "work": 0.15, "algo": "rr", "servers": [{ "speed": 1 }, { "speed": 1 }, { "speed": 1 }], "health": { "server": 1, "down": 3, "detect": 1.5 } } }
+      }
+    },
+    "playground": {
+      "kind": "lb",
+      "playground": true,
+      "controls": [
+        { "type": "toggle", "key": "n", "label": "Servers", "options": [[1, "1"], [2, "2"], [3, "3"], [4, "4"]] },
+        { "type": "range", "key": "rate", "label": "Requests per second", "min": 4, "max": 30 }
+      ],
+      "ctrl": { "n": 1, "rate": 12, "algo": "least" },
+      "scene": { "period": 10, "rate": 12, "start": 0.3, "end": 8.6, "work": 0.15, "algo": "least", "servers": [{ "speed": 1 }] }
+    }
+  },
+  "references": [
+    { "label": "Amazon EC2 Auto Scaling: what it is", "url": "https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html", "note": "Groups of instances with a minimum, maximum and desired size.", "type": "docs" },
+    { "label": "Kubernetes: Horizontal Pod Autoscaling", "url": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/", "note": "Changing the number of copies of a workload to match a metric.", "type": "docs" }
+  ]
+}

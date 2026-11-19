@@ -1,0 +1,102 @@
+{
+  "slug": "cache-invalidation",
+  "course": "System Design, Visually",
+  "part": "Caching",
+  "title": "Cache invalidation",
+  "summary": "Keeping cached copies from going stale: expiry times, deleting on write, the race that remains, and the stampede when a popular key expires.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A cache holds copies. When the original changes, the copies are wrong until something removes or replaces them. A read that returns an old value is a **stale read**." },
+        { "p": "Some staleness is harmless: a like count that is a few seconds behind. Some is not: a price that changed, or a permission that was revoked. You need to decide how stale each kind of data may be, then make the cache meet that." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "Expiry times" },
+        { "p": "Give every cached item a **TTL**, a time to live. After that, the item expires and the next read loads a fresh copy. The TTL is an upper limit on staleness. It needs no coordination, but data can be wrong for the whole TTL after a change." },
+        { "h3": "Delete on write" },
+        { "p": "When the app changes the database, it also deletes the cached copy. The next read misses and loads the new value. Most stale reads disappear. Keep a TTL as well, as a safety net for deletes that fail." },
+        { "figure": "stale", "caption": "Key 1 changes in the database at 3 s and 6.5 s. With a TTL alone, reads keep returning the old value, shown in amber. With delete on write, they stop." },
+        { "h3": "The race that remains" },
+        { "p": "Delete on write still has a gap. A reader misses and reads the old value from the database. Before it writes that value into the cache, a writer updates the database and deletes the key. The reader then puts the old value back, and it stays until the TTL runs out." },
+        { "figure": "race", "caption": "The reader's slow refill lands after the writer's delete, so the cache holds the old price." },
+        { "p": "Facebook's memcache paper calls this a stale set, and fixes it with **leases**: on a miss the cache hands the reader a token, and a delete cancels it. A refill with a cancelled token is refused." },
+        { "h3": "The stampede" },
+        { "p": "When a popular key expires, every request for it misses at once. Each one queries the database for the same value while the first query is still running. This is a **cache stampede**, also called a thundering herd." },
+        { "p": "The fix is to let one request refill the key while the others wait for its result. This is called request coalescing. The memcache paper's leases do this too, by limiting how often the cache hands out a token for each key." },
+        { "figure": "stampede", "caption": "30 requests a second for one key that expires every few seconds. Without coalescing, each expiry sends a burst of reads to the database. With it, one read." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Leases at Facebook.** [Scaling Memcache at Facebook](https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala) describes leases solving both stale sets and thundering herds.",
+          "**Add jitter to TTLs.** Items cached at the same moment with the same TTL expire together. A random spread of a few percent spreads the misses out.",
+          "**Put a version in the key.** Cache `user:7:v12` instead of `user:7`, and bump the version on each write. Old entries are never read again, and expire on their own. The CDN lesson uses the same idea for file names.",
+          "**Serve stale on purpose.** HTTP's `stale-while-revalidate`, from [RFC 5861](https://www.rfc-editor.org/rfc/rfc5861), serves the old copy while one request fetches a new one."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A TTL limits how long a copy can be stale, with no coordination.",
+          "Deleting the cached copy on every write removes most stale reads.",
+          "A slow refill can still put an old value back after a delete. Leases close that gap.",
+          "When a popular key expires, coalesce the misses so only one request reads the database."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "stale": {
+      "kind": "cache",
+      "scenarios": {
+        "ttl": { "label": "TTL only, 5 s", "scene": { "period": 10, "rate": 8, "start": 0.3, "end": 9, "keys": 4, "skew": 1.2, "capacity": 4, "policy": "lru", "db": 0.3, "ttl": 5, "writes": [{ "at": 3, "key": "1" }, { "at": 6.5, "key": "1" }], "onWrite": "none" } },
+        "delete": { "label": "Delete on write", "scene": { "period": 10, "rate": 8, "start": 0.3, "end": 9, "keys": 4, "skew": 1.2, "capacity": 4, "policy": "lru", "db": 0.3, "ttl": 5, "writes": [{ "at": 3, "key": "1" }, { "at": 6.5, "key": "1" }], "onWrite": "delete" } }
+      }
+    },
+    "race": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "reader", "label": "Reader", "short": "Reader", "icon": "server" },
+        { "id": "cache", "label": "Cache", "short": "Cache", "icon": "store" },
+        { "id": "db", "label": "Database", "short": "DB", "icon": "store" },
+        { "id": "writer", "label": "Writer", "short": "Writer", "icon": "server" }
+      ],
+      "state": { "db": "price: 10" },
+      "steps": [
+        { "from": "reader", "to": "cache", "label": "GET price" },
+        { "from": "cache", "to": "reader", "label": "Not found", "kind": "refer" },
+        { "from": "reader", "to": "db", "label": "SELECT price" },
+        { "from": "db", "to": "reader", "label": "10", "kind": "answer" },
+        { "from": "writer", "to": "db", "label": "UPDATE price = 12", "set": { "db": "price: 12" } },
+        { "from": "writer", "to": "cache", "label": "DELETE price" },
+        { "from": "reader", "to": "cache", "label": "SET price = 10", "kind": "fail", "set": { "cache": "price = 10, stale" } }
+      ]
+    },
+    "stampede": {
+      "kind": "cache",
+      "scenarios": {
+        "herd": { "label": "No coalescing", "scene": { "period": 8, "rate": 30, "start": 0.3, "end": 7.6, "keys": 1, "skew": 0, "capacity": 1, "policy": "lru", "db": 0.6, "ttl": 3, "warm": true, "coalesce": false } },
+        "one": { "label": "Coalesce misses", "scene": { "period": 8, "rate": 30, "start": 0.3, "end": 7.6, "keys": 1, "skew": 0, "capacity": 1, "policy": "lru", "db": 0.6, "ttl": 3, "warm": true, "coalesce": true } }
+      }
+    }
+  },
+  "references": [
+    { "label": "Nishtala et al.: Scaling Memcache at Facebook (NSDI 2013)", "url": "https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala", "note": "Leases against stale sets and thundering herds.", "type": "paper" },
+    { "label": "RFC 5861: HTTP Cache-Control extensions for stale content", "url": "https://www.rfc-editor.org/rfc/rfc5861", "note": "Serving a stale copy while revalidating.", "type": "standard" },
+    { "label": "RFC 9111: HTTP caching", "url": "https://www.rfc-editor.org/rfc/rfc9111", "note": "Freshness lifetime, the HTTP form of a TTL.", "type": "standard" }
+  ]
+}

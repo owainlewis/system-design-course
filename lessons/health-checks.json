@@ -1,0 +1,371 @@
+{
+  "slug": "health-checks",
+  "course": "System Design, Visually",
+  "part": "Reliability",
+  "title": "Health checks and failover",
+  "summary": "How a load balancer finds out a server has failed, how fast it can know, and the checks that take down healthy servers by mistake.",
+  "minutes": 9,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "A load balancer spreads requests over three servers. One crashes. Until the load balancer notices, it keeps sending a third of all requests to a server that can't answer them."
+        },
+        {
+          "p": "The load balancer needs a way to tell that a server has failed, and to stop sending it traffic. It also needs to notice when the server comes back."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "A **health check** is a request the load balancer sends to each server on a schedule, such as `GET /health` every 10 seconds. A server that fails a set number of checks in a row is marked unhealthy and taken out of the pool. After a set number of passing checks, it goes back in."
+        },
+        {
+          "p": "The settings trade speed for caution. Frequent checks with a low threshold notice a failure fast, but can remove a server that was only briefly slow."
+        },
+        {
+          "figure": "detect",
+          "caption": "Server 2 fails at 2.5 s. Requests sent to it fail until the load balancer notices. Faster checks notice sooner and lose fewer requests."
+        },
+        {
+          "figure": "cost",
+          "caption": "How long a failure can go unnoticed, and how many requests go to the failed server meanwhile."
+        },
+        {
+          "h3": "Liveness and readiness"
+        },
+        {
+          "p": "Two questions are worth asking separately. **Liveness**: is the process working at all, or should it be restarted? **Readiness**: should it get traffic right now? A server that is starting up, or warming its cache, is alive but not ready."
+        },
+        {
+          "h3": "Deep checks can fail together"
+        },
+        {
+          "p": "A check that also tests the database seems more thorough. But if the database slows down, every server fails its check at the same moment. The load balancer removes all of them, though most requests didn't need the database."
+        },
+        {
+          "figure": "checks",
+          "caption": "Deep checks that query the database fail on every server at once. A readiness check keeps a starting server out of the pool until it is ready."
+        },
+        {
+          "p": "Keep the check about the server itself. When every server looks unhealthy, it is safer to keep sending traffic to all of them than to none. This is called **failing open**."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Kubernetes has three probes.** Kubernetes [liveness, readiness and startup probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/) restart a container that fails liveness, and stop sending traffic to one that fails readiness.",
+            "**AWS load balancers fail open.** An Application Load Balancer's [health checks](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html) have a configurable interval and thresholds. If every target is unhealthy, it routes requests to all of them.",
+            "**Amazon warns about deep checks.** The Builders' Library article [Implementing health checks](https://aws.amazon.com/builders-library/implementing-health-checks/) compares liveness, local and dependency checks, and explains when failing open is safer.",
+            "**Clients can help.** A load balancer that sees errors on real requests can stop using a server before the next check runs. Envoy calls this outlier detection."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "Health checks let a load balancer remove failed servers and add them back when they recover.",
+            "The interval and thresholds set how long a failure goes unnoticed, and how many requests fail meanwhile.",
+            "Separate liveness, which may restart a process, from readiness, which controls traffic.",
+            "Keep checks about the server itself, and fail open when every server looks unhealthy."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "detect": {
+      "kind": "lb",
+      "scenarios": {
+        "slow": {
+          "label": "Slow checks",
+          "scene": {
+            "period": 9,
+            "rate": 12,
+            "start": 0.3,
+            "end": 7.6,
+            "work": 0.15,
+            "algo": "rr",
+            "servers": [
+              {
+                "speed": 1
+              },
+              {
+                "speed": 1
+              },
+              {
+                "speed": 1
+              }
+            ],
+            "health": {
+              "server": 1,
+              "down": 2.5,
+              "detect": 3.5
+            }
+          }
+        },
+        "fast": {
+          "label": "Fast checks",
+          "scene": {
+            "period": 9,
+            "rate": 12,
+            "start": 0.3,
+            "end": 7.6,
+            "work": 0.15,
+            "algo": "rr",
+            "servers": [
+              {
+                "speed": 1
+              },
+              {
+                "speed": 1
+              },
+              {
+                "speed": 1
+              }
+            ],
+            "health": {
+              "server": 1,
+              "down": 2.5,
+              "detect": 0.8
+            }
+          }
+        }
+      }
+    },
+    "cost": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "interval",
+          "label": "Check every (seconds)",
+          "min": 1,
+          "max": 60
+        },
+        {
+          "type": "range",
+          "key": "fails",
+          "label": "Failures before unhealthy",
+          "min": 1,
+          "max": 10
+        },
+        {
+          "type": "range",
+          "key": "timeout",
+          "label": "Check timeout (seconds)",
+          "min": 1,
+          "max": 10
+        },
+        {
+          "type": "range",
+          "key": "rate",
+          "label": "Requests a second",
+          "min": 100,
+          "max": 5000,
+          "step": 100
+        },
+        {
+          "type": "range",
+          "key": "n",
+          "label": "Servers",
+          "min": 2,
+          "max": 10
+        }
+      ],
+      "ctrl": {
+        "interval": 10,
+        "fails": 3,
+        "timeout": 5,
+        "rate": 1000,
+        "n": 4
+      },
+      "rows": [
+        {
+          "key": "worst",
+          "label": "Longest time before it is noticed (s)",
+          "expr": "interval * fails + timeout",
+          "show": "{fails} checks × {interval} s + {timeout} s timeout",
+          "format": "d0"
+        },
+        {
+          "label": "Requests sent to the failed server",
+          "expr": "rate / n * worst",
+          "show": "{rate} a second ÷ {n} servers × {worst} s",
+          "format": "d0",
+          "tone": "accent"
+        }
+      ]
+    },
+    "checks": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "lb",
+          "label": "Load balancer",
+          "short": "LB",
+          "icon": "balancer"
+        },
+        {
+          "id": "s1",
+          "label": "Server 1",
+          "short": "S1",
+          "icon": "server"
+        },
+        {
+          "id": "s2",
+          "label": "Server 2",
+          "short": "S2",
+          "icon": "server"
+        },
+        {
+          "id": "db",
+          "label": "Database",
+          "short": "DB",
+          "icon": "store"
+        }
+      ],
+      "scenarios": {
+        "deep": {
+          "label": "Deep checks",
+          "note": "the database is slow, so every server looks down",
+          "state": {
+            "db": "slow"
+          },
+          "steps": [
+            {
+              "from": "lb",
+              "to": "s1",
+              "label": "GET /health"
+            },
+            {
+              "from": "s1",
+              "to": "db",
+              "label": "SELECT 1",
+              "kind": "lost"
+            },
+            {
+              "from": "s1",
+              "to": "lb",
+              "label": "503",
+              "kind": "fail",
+              "set": {
+                "s1": "unhealthy"
+              }
+            },
+            {
+              "from": "lb",
+              "to": "s2",
+              "label": "GET /health"
+            },
+            {
+              "from": "s2",
+              "to": "db",
+              "label": "SELECT 1",
+              "kind": "lost"
+            },
+            {
+              "from": "s2",
+              "to": "lb",
+              "label": "503",
+              "kind": "fail",
+              "set": {
+                "s2": "unhealthy"
+              }
+            },
+            {
+              "from": "lb",
+              "to": "lb",
+              "label": "All unhealthy: fail open",
+              "set": {
+                "lb": "sending to all"
+              }
+            }
+          ]
+        },
+        "ready": {
+          "label": "Readiness",
+          "note": "server 2 gets traffic only once it is ready",
+          "state": {
+            "s1": "in the pool",
+            "s2": "starting"
+          },
+          "steps": [
+            {
+              "from": "lb",
+              "to": "s2",
+              "label": "GET /ready"
+            },
+            {
+              "from": "s2",
+              "to": "lb",
+              "label": "503: loading cache",
+              "kind": "fail"
+            },
+            {
+              "from": "s2",
+              "to": "s2",
+              "label": "Cache loaded",
+              "set": {
+                "s2": "ready"
+              }
+            },
+            {
+              "from": "lb",
+              "to": "s2",
+              "label": "GET /ready"
+            },
+            {
+              "from": "s2",
+              "to": "lb",
+              "label": "200",
+              "kind": "answer"
+            },
+            {
+              "from": "lb",
+              "to": "lb",
+              "label": "Add server 2",
+              "set": {
+                "s2": "in the pool"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "Kubernetes: liveness, readiness and startup probes",
+      "url": "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/",
+      "note": "What each probe does when it fails.",
+      "type": "docs"
+    },
+    {
+      "label": "AWS: health checks for Application Load Balancer target groups",
+      "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html",
+      "note": "Intervals, thresholds and what happens when all targets fail.",
+      "type": "docs"
+    },
+    {
+      "label": "Amazon Builders' Library: Implementing health checks",
+      "url": "https://aws.amazon.com/builders-library/implementing-health-checks/",
+      "note": "Liveness, local and dependency checks, and failing open.",
+      "type": "engineering"
+    }
+  ]
+}

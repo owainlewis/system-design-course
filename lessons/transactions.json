@@ -1,0 +1,150 @@
+{
+  "slug": "transactions",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "Transactions and isolation",
+  "summary": "How a database makes a group of changes all-or-nothing, and what goes wrong when two transactions touch the same data at once.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "Moving money from Alice to Bob takes two changes: subtract from Alice, add to Bob. If the server crashes between them, the money vanishes. If two transfers run at the same moment, they can each read the same balance and overwrite each other." },
+        { "p": "Both problems happen in real systems, under real load. A **transaction** is the database's answer to both." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "A transaction groups statements between `BEGIN` and `COMMIT`. The database promises four things, known by the initials **ACID**:" },
+        { "list": [
+          "**Atomicity.** All the changes happen, or none do. A crash or a `ROLLBACK` undoes the partial work.",
+          "**Consistency.** The database's rules, such as constraints, hold before and after.",
+          "**Isolation.** Transactions running at the same time don't see each other's half-finished work. How strictly this holds depends on the isolation level.",
+          "**Durability.** Once `COMMIT` returns, the change survives a crash."
+        ] },
+        { "h3": "All or nothing" },
+        { "figure": "atomic", "caption": "A transfer that crashes half way. Without a transaction, Alice loses 50 and Bob gains nothing. With one, the database undoes the first change." },
+        { "h3": "The lost update" },
+        { "p": "Two requests each add to the same balance. Each reads 100, adds its amount, and writes the result. The second write replaces the first, so one deposit disappears. Isolation is about preventing this kind of interference." },
+        { "figure": "lost-update", "caption": "Two deposits to the same account. Without a lock, the 30 deposit is lost. With SELECT ... FOR UPDATE, the second request waits for the first." },
+        { "p": "Other fixes work too: an atomic `UPDATE accounts SET balance = balance + 30`, or a stricter isolation level that detects the conflict and aborts one transaction." },
+        { "h3": "Isolation levels" },
+        { "p": "Full isolation is expensive, so databases offer weaker levels that allow some anomalies. The SQL standard defines four levels by the anomalies each one prevents." },
+        { "table": {
+          "head": ["Level", "Dirty read", "Non-repeatable read", "Phantom read"],
+          "rows": [
+            ["Read uncommitted", "Possible", "Possible", "Possible"],
+            ["Read committed", "Prevented", "Possible", "Possible"],
+            ["Repeatable read", "Prevented", "Prevented", "Possible"],
+            ["Serializable", "Prevented", "Prevented", "Prevented"]
+          ]
+        } },
+        { "p": "A **dirty read** sees another transaction's uncommitted change. A **non-repeatable read** gets a different answer when it reads the same row twice. A **phantom read** finds new rows when it repeats a search. Serializable means the result is the same as if the transactions ran one at a time." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Defaults differ.** PostgreSQL defaults to read committed, as its [isolation page](https://www.postgresql.org/docs/current/transaction-iso.html) states. MySQL's InnoDB defaults to [repeatable read](https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html).",
+          "**Implementations go beyond the standard.** PostgreSQL's repeatable read also prevents phantom reads, and the same page lists which anomalies each of its levels allows.",
+          "**Serializable can fail.** At the serializable level, PostgreSQL aborts a transaction it can't fit into a serial order, with a serialization failure. The application must retry it.",
+          "**The standard's definitions have gaps.** [A Critique of ANSI SQL Isolation Levels](https://www.microsoft.com/en-us/research/publication/a-critique-of-ansi-sql-isolation-levels/) showed that the four levels miss anomalies such as the lost update, and defined snapshot isolation."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A transaction makes a group of changes all-or-nothing and durable once committed.",
+          "Concurrent read-then-write can lose updates. Locks, atomic updates or stricter isolation prevent it.",
+          "Isolation levels trade safety for speed. Know your database's default.",
+          "At the strictest levels, be ready to retry transactions the database aborts."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "atomic": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "app", "label": "App server", "short": "App", "icon": "server" },
+        { "id": "db", "label": "Database", "short": "DB", "icon": "store" }
+      ],
+      "scenarios": {
+        "none": {
+          "label": "No transaction",
+          "note": "50 has vanished",
+          "state": { "db": "Alice 100, Bob 0" },
+          "steps": [
+            { "from": "app", "to": "db", "label": "Alice − 50", "set": { "db": "Alice 50, Bob 0" } },
+            { "from": "db", "to": "app", "label": "OK", "kind": "answer" },
+            { "from": "app", "to": "app", "label": "App crashes", "kind": "fail" },
+            { "from": "app", "to": "db", "label": "Bob + 50 never sent", "kind": "lost" }
+          ]
+        },
+        "tx": {
+          "label": "In a transaction",
+          "note": "nothing changed, so the transfer can be retried",
+          "state": { "db": "Alice 100, Bob 0" },
+          "steps": [
+            { "from": "app", "to": "db", "label": "BEGIN" },
+            { "from": "app", "to": "db", "label": "Alice − 50", "set": { "db": "Alice 50 (uncommitted), Bob 0" } },
+            { "from": "app", "to": "app", "label": "App crashes", "kind": "fail" },
+            { "from": "db", "to": "db", "label": "Connection lost: roll back", "set": { "db": "Alice 100, Bob 0" } }
+          ]
+        }
+      }
+    },
+    "lost-update": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "a", "label": "Deposit of 50", "short": "+50", "icon": "server" },
+        { "id": "db", "label": "Database", "short": "DB", "icon": "store" },
+        { "id": "b", "label": "Deposit of 30", "short": "+30", "icon": "server" }
+      ],
+      "scenarios": {
+        "lost": {
+          "label": "Read, then write",
+          "note": "balance should be 180",
+          "state": { "db": "balance 100" },
+          "steps": [
+            { "from": "a", "to": "db", "label": "SELECT balance" },
+            { "from": "db", "to": "a", "label": "100", "kind": "answer" },
+            { "from": "b", "to": "db", "label": "SELECT balance" },
+            { "from": "db", "to": "b", "label": "100", "kind": "answer" },
+            { "from": "a", "to": "db", "label": "SET balance = 150", "set": { "db": "balance 150" } },
+            { "from": "b", "to": "db", "label": "SET balance = 130", "kind": "fail", "set": { "db": "balance 130: 50 lost" } }
+          ]
+        },
+        "locked": {
+          "label": "SELECT ... FOR UPDATE",
+          "note": "the second deposit waits, then reads 150",
+          "state": { "db": "balance 100" },
+          "steps": [
+            { "from": "a", "to": "db", "label": "SELECT ... FOR UPDATE", "set": { "db": "balance 100, locked by +50" } },
+            { "from": "db", "to": "a", "label": "100", "kind": "answer" },
+            { "from": "b", "to": "db", "label": "SELECT ... FOR UPDATE" },
+            { "from": "db", "to": "db", "label": "Row locked: +30 waits" },
+            { "from": "a", "to": "db", "label": "SET 150, COMMIT", "set": { "db": "balance 150" } },
+            { "from": "db", "to": "b", "label": "150", "kind": "answer" },
+            { "from": "b", "to": "db", "label": "SET 180, COMMIT", "set": { "db": "balance 180" } }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "PostgreSQL: transaction isolation", "url": "https://www.postgresql.org/docs/current/transaction-iso.html", "note": "The four levels, PostgreSQL's default, and serialization failures.", "type": "docs" },
+    { "label": "MySQL: InnoDB transaction isolation levels", "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html", "note": "InnoDB's levels and its repeatable read default.", "type": "docs" },
+    { "label": "Berenson et al.: A Critique of ANSI SQL Isolation Levels (1995)", "url": "https://www.microsoft.com/en-us/research/publication/a-critique-of-ansi-sql-isolation-levels/", "note": "Gaps in the standard's definitions, and snapshot isolation.", "type": "paper" }
+  ]
+}

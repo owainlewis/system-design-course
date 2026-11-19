@@ -1,0 +1,285 @@
+{
+  "slug": "vector-search",
+  "course": "System Design, Visually",
+  "part": "AI systems",
+  "title": "Vector search",
+  "summary": "How text becomes vectors, how a search finds the closest ones, and why fast indexes trade a little accuracy for a lot of speed.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "A user types \"can I get my money back?\". The help article that answers it is titled \"Refund policy\" and never uses the word money. Keyword search, which matches words, misses it."
+        },
+        {
+          "p": "We want search by meaning. And with millions of documents, it has to answer in milliseconds."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "h3": "Embeddings"
+        },
+        {
+          "p": "An **embedding model** turns a piece of text into a **vector**: a list of numbers, often several hundred to a few thousand long. The model is trained so that texts with similar meaning get vectors that point in similar directions."
+        },
+        {
+          "p": "To search, embed every document once and store the vectors. At query time, embed the query and find the stored vectors closest to it. Closeness is usually measured by **cosine similarity**, the angle between two vectors, or by straight-line distance."
+        },
+        {
+          "p": "The figures here draw vectors in two dimensions so you can see them. Real ones have hundreds of dimensions, but the idea is the same."
+        },
+        {
+          "h3": "Exact search is slow at scale"
+        },
+        {
+          "p": "The simplest search compares the query with every stored vector and keeps the closest. It always finds the true nearest neighbours. But the work grows with the number of vectors: a million vectors means a million comparisons for every query."
+        },
+        {
+          "h3": "Approximate indexes"
+        },
+        {
+          "p": "An **approximate nearest neighbour** (ANN) index looks at only part of the data. One common kind, **IVF**, groups the vectors into clusters ahead of time. A query is compared with each cluster's centre, then only with the vectors in the nearest few clusters."
+        },
+        {
+          "figure": "search",
+          "caption": "Exact search compares the query with all 88 vectors. IVF compares it with 4 cluster centres, then searches only the nearest cluster. It is much faster, but misses a neighbour that sits just over the border in Billing."
+        },
+        {
+          "p": "Searching more clusters finds more of the true neighbours and costs more time. The share of true neighbours found is called **recall**. Every ANN index has a setting that trades recall for speed."
+        },
+        {
+          "p": "Another common index, **HNSW**, links each vector to a few near neighbours in a layered graph. A search starts at the top layer and walks the graph toward the query. It is fast and accurate, and uses extra memory for the links."
+        },
+        {
+          "h3": "Memory"
+        },
+        {
+          "figure": "memory",
+          "caption": "Memory to hold the raw vectors, before any index. Each number is a 4-byte float."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Postgres can do this.** The [pgvector](https://github.com/pgvector/pgvector) extension stores vectors in a table. It does exact search by default, and offers HNSW and IVFFlat indexes for approximate search.",
+            "**HNSW is the common default.** Malkov and Yashunin describe it in [their 2016 paper](https://arxiv.org/abs/1603.09320). Many vector databases use it.",
+            "**FAISS is the reference library.** Meta's [FAISS](https://github.com/facebookresearch/faiss) implements exact search, IVF, HNSW and compression, on CPU and GPU.",
+            "**Measure recall on your data.** Build a set of queries, find their true neighbours with exact search, and check what the index returns. Tune it until recall is good enough for your use.",
+            "**Combine with keywords.** Vectors are weak on exact terms such as product codes or names. Many systems run keyword and vector search together and merge the results."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "An embedding model turns text into a vector, and similar meanings land close together.",
+            "Search embeds the query and finds the nearest stored vectors.",
+            "Exact search compares against everything. Approximate indexes such as IVF and HNSW look at a fraction of the data.",
+            "Approximate search trades recall for speed, so measure recall on your own queries."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "search": {
+      "kind": "vectors",
+      "still": 0.95,
+      "scenarios": {
+        "exact": {
+          "label": "Exact",
+          "note": "compares the query with every vector",
+          "scene": {
+            "period": 8,
+            "per": 22,
+            "spread": 0.075,
+            "k": 5,
+            "clusters": [
+              {
+                "label": "Refunds",
+                "x": 0.3,
+                "y": 0.3
+              },
+              {
+                "label": "Billing",
+                "x": 0.56,
+                "y": 0.34
+              },
+              {
+                "label": "Shipping",
+                "x": 0.78,
+                "y": 0.72
+              },
+              {
+                "label": "Accounts",
+                "x": 0.24,
+                "y": 0.76
+              }
+            ],
+            "query": {
+              "x": 0.42,
+              "y": 0.42,
+              "label": "\"can I get my money back?\""
+            },
+            "mode": "exact"
+          }
+        },
+        "ivf1": {
+          "label": "IVF, 1 cluster",
+          "note": "fast, but misses one neighbour over the border",
+          "scene": {
+            "period": 8,
+            "per": 22,
+            "spread": 0.075,
+            "k": 5,
+            "clusters": [
+              {
+                "label": "Refunds",
+                "x": 0.3,
+                "y": 0.3
+              },
+              {
+                "label": "Billing",
+                "x": 0.56,
+                "y": 0.34
+              },
+              {
+                "label": "Shipping",
+                "x": 0.78,
+                "y": 0.72
+              },
+              {
+                "label": "Accounts",
+                "x": 0.24,
+                "y": 0.76
+              }
+            ],
+            "query": {
+              "x": 0.42,
+              "y": 0.42,
+              "label": "\"can I get my money back?\""
+            },
+            "mode": "ivf",
+            "probe": 1
+          }
+        },
+        "ivf2": {
+          "label": "IVF, 2 clusters",
+          "note": "more work, all 5 found",
+          "scene": {
+            "period": 8,
+            "per": 22,
+            "spread": 0.075,
+            "k": 5,
+            "clusters": [
+              {
+                "label": "Refunds",
+                "x": 0.3,
+                "y": 0.3
+              },
+              {
+                "label": "Billing",
+                "x": 0.56,
+                "y": 0.34
+              },
+              {
+                "label": "Shipping",
+                "x": 0.78,
+                "y": 0.72
+              },
+              {
+                "label": "Accounts",
+                "x": 0.24,
+                "y": 0.76
+              }
+            ],
+            "query": {
+              "x": 0.42,
+              "y": 0.42,
+              "label": "\"can I get my money back?\""
+            },
+            "mode": "ivf",
+            "probe": 2
+          }
+        }
+      }
+    },
+    "memory": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "n",
+          "label": "Vectors (millions)",
+          "min": 1,
+          "max": 500
+        },
+        {
+          "type": "range",
+          "key": "dims",
+          "label": "Dimensions",
+          "min": 256,
+          "max": 4096,
+          "step": 256
+        }
+      ],
+      "ctrl": {
+        "n": 10,
+        "dims": 1536
+      },
+      "formats": {
+        "one": "bytes"
+      },
+      "rows": [
+        {
+          "key": "one",
+          "label": "One vector",
+          "expr": "dims * 4",
+          "show": "{dims} numbers × 4 bytes",
+          "format": "bytes"
+        },
+        {
+          "label": "All vectors",
+          "expr": "one * n * 1e6",
+          "show": "{one} × {n} million",
+          "format": "bytes",
+          "tone": "accent"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "pgvector",
+      "url": "https://github.com/pgvector/pgvector",
+      "note": "Vector search in Postgres, with exact search, HNSW and IVFFlat.",
+      "type": "docs"
+    },
+    {
+      "label": "Malkov and Yashunin: Efficient and robust approximate nearest neighbor search using HNSW graphs",
+      "url": "https://arxiv.org/abs/1603.09320",
+      "note": "The HNSW paper.",
+      "type": "paper"
+    },
+    {
+      "label": "FAISS",
+      "url": "https://github.com/facebookresearch/faiss",
+      "note": "A library for similarity search and clustering of vectors.",
+      "type": "official"
+    }
+  ]
+}

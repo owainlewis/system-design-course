@@ -1,0 +1,372 @@
+{
+  "slug": "dns",
+  "course": "System Design, Visually",
+  "part": "Foundations",
+  "title": "DNS",
+  "summary": "How a name like example.com becomes an IP address, who answers each part of the question, and why the answer is cached.",
+  "minutes": 9,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Computers on the internet connect to each other by IP address, such as `192.0.2.10`. People use names, such as `example.com`. Something has to turn the name into the address before any connection can start."
+        },
+        {
+          "p": "Early on, one organisation, the Network Information Center, kept every name and address in a single file called `HOSTS.TXT`. Every computer downloaded a copy. That stopped working as the network grew. Sending out each new version used more and more of the network, and every change had to wait for the one organisation to update the file. [RFC 1034](https://www.rfc-editor.org/rfc/rfc1034) describes this history and the system that replaced it."
+        },
+        {
+          "p": "The Domain Name System, or **DNS**, splits the job up. No single server knows every name. Each server knows one part of the answer, and knows who to ask for the next part."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "h3": "Names are a tree"
+        },
+        {
+          "p": "Read a name from right to left. `www.example.com` sits under `example`, which sits under `com`, which sits under the root. Each level hands control of the level below it to someone else. This is called **delegation**: the `.com` servers don't store `example.com`'s addresses, they only know which servers do."
+        },
+        {
+          "h3": "Four kinds of server"
+        },
+        {
+          "list": [
+            "**Recursive resolver.** Does the work for you. Your laptop sends it one question and it chases the answer. Most people use the one their internet provider runs; public ones such as Cloudflare's `1.1.1.1` also exist.",
+            "**Root server.** The top of the tree. It doesn't know `example.com`, but it knows which servers handle `.com`.",
+            "**TLD server.** Handles one top-level domain, such as `.com`. It knows which servers are in charge of `example.com`.",
+            "**Authoritative server.** Holds the records for one domain. It gives the final answer."
+          ]
+        },
+        {
+          "h3": "A first lookup"
+        },
+        {
+          "p": "Here is a lookup where nobody has the answer cached yet. Your laptop asks the resolver once. The resolver then asks three servers in turn, each one pointing it closer to the answer."
+        },
+        {
+          "figure": "first-lookup",
+          "caption": "A lookup with an empty cache. The resolver asks the root, then `.com`, then example.com's own server, and caches the answer."
+        },
+        {
+          "h3": "Caching and TTL"
+        },
+        {
+          "p": "Every answer comes with a **TTL**, short for time to live. It is a number of seconds. The resolver may keep the answer in its cache for that long and reuse it for anyone who asks. [RFC 1034](https://www.rfc-editor.org/rfc/rfc1034) defines the TTL as a time limit on how long a record can be kept in a cache, and a TTL of 0 means don't cache it."
+        },
+        {
+          "p": "Caching is what makes DNS fast. With the answer cached, the second lookup is one round trip instead of four. The resolver also caches the referrals it got along the way, so when the address expires it can often go straight to example.com's server."
+        },
+        {
+          "figure": "cached-lookup",
+          "caption": "The same question once the answer is cached, and again after the address record's TTL has run out."
+        }
+      ]
+    },
+    {
+      "id": "records",
+      "heading": "Record types",
+      "blocks": [
+        {
+          "p": "A DNS server stores **records**. Each record has a name, a type, a TTL and a value. These are the types you will meet most often."
+        },
+        {
+          "table": {
+            "head": [
+              "Type",
+              "What it holds",
+              "Example value"
+            ],
+            "rows": [
+              [
+                "A",
+                "An IPv4 address",
+                "`192.0.2.10`"
+              ],
+              [
+                "AAAA",
+                "An IPv6 address",
+                "`2001:db8::10`"
+              ],
+              [
+                "CNAME",
+                "Another name to look up instead",
+                "`example.net`"
+              ],
+              [
+                "NS",
+                "The servers in charge of a domain",
+                "`ns1.example.com`"
+              ],
+              [
+                "MX",
+                "The mail servers for a domain",
+                "`10 mail.example.com`"
+              ],
+              [
+                "TXT",
+                "Free text, often used to prove you own a domain",
+                "`\"v=spf1 -all\"`"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "A, NS, MX, CNAME and TXT are defined in [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035). AAAA came later, in [RFC 3596](https://www.rfc-editor.org/rfc/rfc3596)."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**The root is 13 names, run by 12 organisations.** The root servers are named A to M. According to [root-servers.org](https://root-servers.org/), they are run by 12 independent operators from more than 2,000 server instances around the world.",
+            "**TTL is a trade-off.** A long TTL means fewer lookups and faster pages, but a change takes longer to reach everyone, because old answers stay in caches until they expire. A short TTL makes changes spread quickly at the cost of more queries.",
+            "**Lower the TTL before you move.** If you plan to point a name at a new server, lower its TTL first, and wait at least as long as the old TTL. When you switch, caches then hold the old answer for minutes, not hours.",
+            "**DNS failures look like the site is down.** If the resolver can't get an answer, the browser never gets an address to connect to, even though the web server itself is fine."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "DNS turns names into IP addresses.",
+            "No server knows everything. The root points to the TLD servers, the TLD servers point to the domain's own servers, and those give the answer.",
+            "A recursive resolver does the chasing for you and caches every answer for its TTL.",
+            "Long TTLs mean fewer lookups. Short TTLs mean changes spread faster."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "first-lookup": {
+      "kind": "flow",
+      "counter": "resolver",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "laptop",
+          "label": "Your laptop",
+          "short": "Laptop",
+          "icon": "browser"
+        },
+        {
+          "id": "resolver",
+          "label": "Recursive resolver",
+          "short": "Resolver",
+          "icon": "server"
+        },
+        {
+          "id": "root",
+          "label": "Root server",
+          "short": "Root",
+          "icon": "globe"
+        },
+        {
+          "id": "tld",
+          "label": ".com server",
+          "short": ".com",
+          "icon": "book"
+        },
+        {
+          "id": "auth",
+          "label": "example.com's server",
+          "short": "example.com",
+          "icon": "server"
+        }
+      ],
+      "steps": [
+        {
+          "from": "laptop",
+          "to": "resolver",
+          "label": "Where is example.com?"
+        },
+        {
+          "from": "resolver",
+          "to": "root",
+          "label": "Where is example.com?"
+        },
+        {
+          "from": "root",
+          "to": "resolver",
+          "label": "Ask the .com servers",
+          "kind": "refer"
+        },
+        {
+          "from": "resolver",
+          "to": "tld",
+          "label": "Where is example.com?"
+        },
+        {
+          "from": "tld",
+          "to": "resolver",
+          "label": "Ask ns1.example.com",
+          "kind": "refer"
+        },
+        {
+          "from": "resolver",
+          "to": "auth",
+          "label": "Where is example.com?"
+        },
+        {
+          "from": "auth",
+          "to": "resolver",
+          "label": "192.0.2.10, TTL 300 s",
+          "kind": "answer",
+          "set": {
+            "resolver": "cached: 192.0.2.10"
+          }
+        },
+        {
+          "from": "resolver",
+          "to": "laptop",
+          "label": "192.0.2.10",
+          "kind": "answer",
+          "set": {
+            "laptop": "connects to 192.0.2.10"
+          }
+        }
+      ]
+    },
+    "cached-lookup": {
+      "kind": "flow",
+      "counter": "resolver",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "laptop",
+          "label": "Your laptop",
+          "short": "Laptop",
+          "icon": "browser"
+        },
+        {
+          "id": "resolver",
+          "label": "Recursive resolver",
+          "short": "Resolver",
+          "icon": "server"
+        },
+        {
+          "id": "root",
+          "label": "Root server",
+          "short": "Root",
+          "icon": "globe"
+        },
+        {
+          "id": "tld",
+          "label": ".com server",
+          "short": ".com",
+          "icon": "book"
+        },
+        {
+          "id": "auth",
+          "label": "example.com's server",
+          "short": "example.com",
+          "icon": "server"
+        }
+      ],
+      "scenarios": {
+        "cached": {
+          "label": "Answer cached",
+          "state": {
+            "resolver": "cached: 192.0.2.10, 240 s left"
+          },
+          "steps": [
+            {
+              "from": "laptop",
+              "to": "resolver",
+              "label": "Where is example.com?"
+            },
+            {
+              "from": "resolver",
+              "to": "laptop",
+              "label": "192.0.2.10, from cache",
+              "kind": "answer",
+              "set": {
+                "laptop": "connects to 192.0.2.10"
+              }
+            }
+          ]
+        },
+        "expired": {
+          "label": "Address expired",
+          "state": {
+            "resolver": "cached: ns1.example.com; address expired"
+          },
+          "steps": [
+            {
+              "from": "laptop",
+              "to": "resolver",
+              "label": "Where is example.com?"
+            },
+            {
+              "from": "resolver",
+              "to": "auth",
+              "label": "Where is example.com?"
+            },
+            {
+              "from": "auth",
+              "to": "resolver",
+              "label": "192.0.2.10, TTL 300 s",
+              "kind": "answer",
+              "set": {
+                "resolver": "cached: 192.0.2.10"
+              }
+            },
+            {
+              "from": "resolver",
+              "to": "laptop",
+              "label": "192.0.2.10",
+              "kind": "answer",
+              "set": {
+                "laptop": "connects to 192.0.2.10"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "RFC 1034: Domain names, concepts and facilities",
+      "url": "https://www.rfc-editor.org/rfc/rfc1034",
+      "note": "The design of DNS: the tree, delegation, resolvers, caching and TTL.",
+      "type": "standard"
+    },
+    {
+      "label": "RFC 1035: Domain names, implementation and specification",
+      "url": "https://www.rfc-editor.org/rfc/rfc1035",
+      "note": "The message format and the core record types.",
+      "type": "standard"
+    },
+    {
+      "label": "RFC 3596: DNS extensions to support IPv6",
+      "url": "https://www.rfc-editor.org/rfc/rfc3596",
+      "note": "The AAAA record.",
+      "type": "standard"
+    },
+    {
+      "label": "Root server technical operations",
+      "url": "https://root-servers.org/",
+      "note": "The 13 root server names, their 12 operators and a live count of instances.",
+      "type": "official"
+    },
+    {
+      "label": "Cloudflare: DNS server types",
+      "url": "https://www.cloudflare.com/learning/dns/dns-server-types/",
+      "note": "The four kinds of server in a lookup, and the order they are asked.",
+      "type": "docs"
+    }
+  ]
+}

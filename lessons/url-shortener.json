@@ -1,0 +1,479 @@
+{
+  "slug": "url-shortener",
+  "course": "System Design, Visually",
+  "part": "Case studies",
+  "title": "Design a URL shortener",
+  "summary": "A full design worked from requirements: estimates, the API, generating short keys, storing them, fast redirects and click counts.",
+  "minutes": 14,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Build a service that turns a long URL into a short one, such as `short.example/aZ3kP9q`, and sends anyone who opens the short link to the long URL."
+        },
+        {
+          "h3": "Requirements"
+        },
+        {
+          "list": [
+            "**Create.** Given a long URL, return a short link. Links are kept for 5 years.",
+            "**Redirect.** Opening a short link redirects to the long URL, fast, from anywhere.",
+            "**Count clicks.** Owners can see how many times each link was opened.",
+            "**Scale.** 100 million new links a month. Links are read about 100 times as often as they are created."
+          ]
+        },
+        {
+          "p": "Short keys shouldn't be guessable in order, so nobody can list every link by counting. Redirects matter most: a slow or failed redirect breaks a link someone shared."
+        }
+      ]
+    },
+    {
+      "id": "estimates",
+      "heading": "Estimates",
+      "blocks": [
+        {
+          "p": "Start with rough numbers, as in the estimates lesson. They decide which parts need care."
+        },
+        {
+          "figure": "estimates",
+          "caption": "Traffic and storage from the requirements. Writes are modest. Reads and total rows are what need planning."
+        },
+        {
+          "p": "About 40 writes a second is easy for one database. About 4,000 reads a second on average, with peaks several times higher, calls for a cache. Six billion rows over 5 years, a few terabytes, is more than one machine should hold comfortably, so plan to shard."
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "heading": "API",
+      "blocks": [
+        {
+          "code": "POST /links\n{ \"url\": \"https://example.com/a/very/long/path?with=params\" }\n\n201 Created\n{ \"key\": \"aZ3kP9q\", \"short\": \"https://short.example/aZ3kP9q\" }\n\nGET /aZ3kP9q\n\n302 Found\nLocation: https://example.com/a/very/long/path?with=params",
+          "caption": "Creating a link, and following it."
+        },
+        {
+          "p": "`301 Moved Permanently` lets browsers cache the redirect, so repeat clicks never reach you. That saves load but loses click counts, and you can never change where the link points. `302 Found` sends every click through the service. With click counts as a requirement, use 302."
+        }
+      ]
+    },
+    {
+      "id": "keys",
+      "heading": "Generating short keys",
+      "blocks": [
+        {
+          "p": "Keys use the 62 characters `a-z`, `A-Z` and `0-9`, called base62. Each extra character multiplies the number of keys by 62."
+        },
+        {
+          "figure": "keyspace",
+          "caption": "How many keys a length gives, and how full the space is after 5 years at 100 million links a month."
+        },
+        {
+          "p": "Seven characters give about 3.5 trillion keys. After 5 years, 6 billion are used, under 0.2% of the space. There are three common ways to pick a key."
+        },
+        {
+          "list": [
+            "**Hash the URL.** Take the first 7 characters of a hash of the long URL. Different URLs can still produce the same 7 characters, so you must check for collisions anyway.",
+            "**Count.** Give each link the next number from a counter and write it in base62. No collisions, but keys come out in order and can be guessed. One shared counter is also a hot spot. Handing each server a block of a thousand numbers at a time fixes the hot spot but not the guessing.",
+            "**Random.** Pick 7 random characters and insert with a unique constraint on the key. If the key exists, which happens to fewer than 1 insert in 500 even after 5 years, pick again."
+          ]
+        },
+        {
+          "p": "Random keys meet every requirement: they are unguessable, need no coordination, and the database enforces uniqueness."
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "heading": "Storing links",
+      "blocks": [
+        {
+          "code": "CREATE TABLE links (\n  key         VARCHAR(7) PRIMARY KEY,\n  long_url    TEXT NOT NULL,\n  owner_id    BIGINT,\n  created_at  TIMESTAMP NOT NULL,\n  expires_at  TIMESTAMP\n);",
+          "caption": "One row per link. Every read is a lookup by key."
+        },
+        {
+          "p": "Every redirect is a lookup by primary key, and there are no joins on the hot path. A relational database or a key-value store both work. Shard by a hash of the key, as in the sharding lesson. Random keys already spread evenly, so no shard gets more than its share."
+        }
+      ]
+    },
+    {
+      "id": "redirects",
+      "heading": "Fast redirects",
+      "blocks": [
+        {
+          "p": "Link popularity is very uneven. A link in a viral post gets millions of clicks; most get a handful. That is the shape where a cache works best."
+        },
+        {
+          "figure": "redirect",
+          "caption": "Creating a link, then two redirects. A cached key answers without touching the database. A miss reads the database and fills the cache. Each click is logged without waiting."
+        },
+        {
+          "figure": "cache",
+          "caption": "Redirects for 200 links where a few are far more popular. A warm cache holding 40 of them answers over 80% of redirects."
+        },
+        {
+          "p": "Run the link service in several regions behind DNS that sends users to the nearest one, with a read replica of the database in each. Redirects are read-only, so they keep working even if the primary database is briefly unreachable."
+        }
+      ]
+    },
+    {
+      "id": "analytics",
+      "heading": "Counting clicks",
+      "blocks": [
+        {
+          "p": "Updating a counter row on every click would turn each redirect into a write, and a viral link into a hot row. Instead, the service appends a click event to an event log and returns the redirect straight away."
+        },
+        {
+          "p": "A separate consumer reads the log, counts clicks per key per minute, and writes the totals in batches. Counts lag by a few seconds, which is fine for a dashboard, and the redirect path never waits on them."
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "Estimates show a write load one database handles, and a read load and row count that need a cache and sharding.",
+            "Keys are 7 random base62 characters, made unique by the database's key constraint.",
+            "Redirects use 302 so every click is counted, and a cache answers most of them.",
+            "Clicks go to an event log and are counted in batches, off the redirect path."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "estimates": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "m",
+          "label": "New links a month (millions)",
+          "min": 10,
+          "max": 1000,
+          "step": 10
+        },
+        {
+          "type": "range",
+          "key": "ratio",
+          "label": "Reads per write",
+          "min": 10,
+          "max": 1000,
+          "step": 10
+        },
+        {
+          "type": "range",
+          "key": "years",
+          "label": "Years kept",
+          "min": 1,
+          "max": 10
+        },
+        {
+          "type": "range",
+          "key": "row",
+          "label": "Bytes per link",
+          "min": 100,
+          "max": 2000,
+          "step": 100
+        }
+      ],
+      "ctrl": {
+        "m": 100,
+        "ratio": 100,
+        "years": 5,
+        "row": 500
+      },
+      "formats": {
+        "rows": "big"
+      },
+      "rows": [
+        {
+          "key": "w",
+          "label": "Writes per second",
+          "expr": "m * 1e6 / (30 * 86400)",
+          "show": "{m} million ÷ 2.6 million seconds in a month",
+          "format": "d0"
+        },
+        {
+          "label": "Reads per second, average",
+          "expr": "w * ratio",
+          "show": "{w} × {ratio}",
+          "format": "d0",
+          "tone": "accent"
+        },
+        {
+          "key": "rows",
+          "label": "Links stored",
+          "expr": "m * 1e6 * 12 * years",
+          "show": "{m} million × 12 months × {years} years",
+          "format": "big"
+        },
+        {
+          "label": "Storage",
+          "expr": "rows * row",
+          "show": "{rows} × {row} bytes",
+          "format": "bytes",
+          "tone": "accent"
+        }
+      ]
+    },
+    "keyspace": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "len",
+          "label": "Key length",
+          "min": 4,
+          "max": 10
+        }
+      ],
+      "ctrl": {
+        "len": 7
+      },
+      "formats": {
+        "keys": "big"
+      },
+      "rows": [
+        {
+          "key": "keys",
+          "label": "Possible keys",
+          "expr": "Math.pow(62, len)",
+          "show": "62 to the power {len}",
+          "format": "big"
+        },
+        {
+          "label": "Used after 5 years (%)",
+          "expr": "6e9 / keys * 100",
+          "show": "6 billion ÷ {keys}",
+          "format": "d2",
+          "tone": "accent"
+        }
+      ]
+    },
+    "redirect": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "client",
+          "label": "Client",
+          "short": "Client",
+          "icon": "browser"
+        },
+        {
+          "id": "api",
+          "label": "Link service",
+          "short": "API",
+          "icon": "server"
+        },
+        {
+          "id": "cache",
+          "label": "Cache",
+          "short": "Cache",
+          "icon": "store"
+        },
+        {
+          "id": "db",
+          "label": "Database",
+          "short": "DB",
+          "icon": "store"
+        },
+        {
+          "id": "q",
+          "label": "Click log",
+          "short": "Log",
+          "icon": "balancer"
+        }
+      ],
+      "scenarios": {
+        "create": {
+          "label": "Create",
+          "note": "a random key, checked by the database",
+          "steps": [
+            {
+              "from": "client",
+              "to": "api",
+              "label": "POST /links"
+            },
+            {
+              "from": "api",
+              "to": "api",
+              "label": "Random key: aZ3kP9q"
+            },
+            {
+              "from": "api",
+              "to": "db",
+              "label": "INSERT, key must be new",
+              "set": {
+                "db": "aZ3kP9q stored"
+              }
+            },
+            {
+              "from": "db",
+              "to": "api",
+              "label": "OK",
+              "kind": "refer"
+            },
+            {
+              "from": "api",
+              "to": "client",
+              "label": "201 short.example/aZ3kP9q",
+              "kind": "answer"
+            }
+          ]
+        },
+        "hit": {
+          "label": "Redirect, cached",
+          "note": "no database read",
+          "state": {
+            "cache": "has aZ3kP9q"
+          },
+          "steps": [
+            {
+              "from": "client",
+              "to": "api",
+              "label": "GET /aZ3kP9q"
+            },
+            {
+              "from": "api",
+              "to": "cache",
+              "label": "GET aZ3kP9q"
+            },
+            {
+              "from": "cache",
+              "to": "api",
+              "label": "Long URL",
+              "kind": "refer"
+            },
+            {
+              "from": "api",
+              "to": "client",
+              "label": "302 to the long URL",
+              "kind": "answer"
+            },
+            {
+              "from": "api",
+              "to": "q",
+              "label": "Click: aZ3kP9q"
+            }
+          ]
+        },
+        "miss": {
+          "label": "Redirect, not cached",
+          "note": "one database read, then cached",
+          "steps": [
+            {
+              "from": "client",
+              "to": "api",
+              "label": "GET /aZ3kP9q"
+            },
+            {
+              "from": "api",
+              "to": "cache",
+              "label": "GET aZ3kP9q"
+            },
+            {
+              "from": "cache",
+              "to": "api",
+              "label": "Miss",
+              "kind": "fail"
+            },
+            {
+              "from": "api",
+              "to": "db",
+              "label": "SELECT by key"
+            },
+            {
+              "from": "db",
+              "to": "api",
+              "label": "Long URL",
+              "kind": "refer"
+            },
+            {
+              "from": "api",
+              "to": "cache",
+              "label": "SET aZ3kP9q",
+              "set": {
+                "cache": "has aZ3kP9q"
+              }
+            },
+            {
+              "from": "api",
+              "to": "client",
+              "label": "302 to the long URL",
+              "kind": "answer"
+            },
+            {
+              "from": "api",
+              "to": "q",
+              "label": "Click: aZ3kP9q"
+            }
+          ]
+        }
+      }
+    },
+    "cache": {
+      "kind": "cache",
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "capacity",
+          "label": "Cache slots",
+          "options": [
+            [
+              0,
+              "None"
+            ],
+            [
+              10,
+              "10"
+            ],
+            [
+              40,
+              "40"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "capacity": 40
+      },
+      "scene": {
+        "period": 10,
+        "rate": 14,
+        "start": 0.3,
+        "end": 9,
+        "keys": 200,
+        "skew": 1.2,
+        "capacity": 40,
+        "policy": "lru",
+        "db": 0.3,
+        "warm": true
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "RFC 9110: 301 Moved Permanently",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110#section-15.4.2",
+      "note": "A permanent redirect that clients may cache.",
+      "type": "standard"
+    },
+    {
+      "label": "RFC 9110: 302 Found",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110#section-15.4.3",
+      "note": "A temporary redirect.",
+      "type": "standard"
+    },
+    {
+      "label": "RFC 2606: Reserved top level DNS names",
+      "url": "https://www.rfc-editor.org/rfc/rfc2606",
+      "note": "Why the examples use the .example domain.",
+      "type": "standard"
+    }
+  ]
+}

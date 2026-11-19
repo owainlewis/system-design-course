@@ -1,0 +1,262 @@
+{
+  "slug": "consistent-hashing",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "Consistent hashing",
+  "summary": "How to spread keys over servers so that adding or removing a server moves only a small share of them.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Say you cache data across 4 servers. Each key, such as a user ID, has to live on exactly one server, and every client has to agree which one. The obvious rule is to hash the key to a number and take the remainder after dividing by the number of servers: `server = hash(key) mod 4`."
+        },
+        {
+          "p": "That works until the number of servers changes. Add a fifth server and the rule becomes `mod 5`. For most keys the remainder changes, so most keys now point at a different server. Those servers don't have the data, so every one of those requests misses the cache and goes to the database at the same moment."
+        },
+        {
+          "figure": "modulo",
+          "caption": "100 keys on 4 servers using `hash mod N`. A fifth server is added, then removed. Blue keys are the ones that moved."
+        },
+        {
+          "p": "Going from N servers to N + 1 moves about N out of every N + 1 keys. From 4 to 5, that is about **80%**. What we want is a rule where adding a server moves only the keys the new server should take: about **20%**."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "h3": "Put servers and keys on a ring"
+        },
+        {
+          "p": "Hash every server name to a position on a circle, and hash every key onto the same circle. Each key belongs to the first server you reach going clockwise from it. Each server owns the stretch of the ring between the server before it and itself."
+        },
+        {
+          "p": "Now add a server. It lands somewhere on the ring and takes over the keys between it and the server before it. Every other key stays where it was. Remove a server and only its keys move, to the next server clockwise."
+        },
+        {
+          "figure": "ring",
+          "caption": "The same 100 keys on a ring. Adding a server moves only the keys it takes over."
+        },
+        {
+          "h3": "Uneven ranges and virtual nodes"
+        },
+        {
+          "p": "With one position per server, the gaps between servers are random, so one server can own a much bigger stretch of the ring than another. It then gets more keys and more load."
+        },
+        {
+          "p": "The fix is to give each server many positions, called **virtual nodes**. With 100 positions each, every server owns many small stretches spread around the ring, and the totals even out. When a server leaves, its keys spread across all the others instead of landing on one neighbour."
+        },
+        {
+          "figure": "vnodes",
+          "caption": "Switch between 1 and 100 positions per server and compare how many keys each server gets."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**The original paper.** Consistent hashing comes from a [1997 paper by Karger and others](https://cs.brown.edu/courses/csci2950-u/f09/papers/chash97stoc.pdf) about spreading web caches. It maps caches and pages onto a line from 0 to 1 and gives each cache several copies to even out the load.",
+            "**Amazon Dynamo** describes its partitioning as a ring where each key goes to the first node clockwise. The [Dynamo paper](https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html) names two problems with one position per node. Load is uneven, and some machines are bigger than others. Virtual nodes fix both: a bigger machine gets more of them.",
+            "**NGINX** can pick an upstream server with `hash $key consistent`, so that adding or removing a server remaps only a few keys. Its documentation says this suits caches."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        {
+          "p": "Switch between `hash mod N` and the ring, change the number of positions per server, and add or remove servers. Compare how many keys move, and how even the servers are."
+        },
+        {
+          "figure": "playground",
+          "caption": "The playground. Blue keys moved in the last change."
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "With `hash mod N`, changing the number of servers moves most keys.",
+            "Consistent hashing puts servers and keys on a ring. Each key goes to the next server clockwise.",
+            "Adding or removing a server moves only the keys next to it, about 1 in N + 1.",
+            "Virtual nodes give each server many positions, which evens out the load."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "modulo": {
+      "kind": "ring",
+      "mode": "mod",
+      "keys": 100,
+      "servers": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "period": 8,
+      "script": [
+        {
+          "at": 2,
+          "act": "add"
+        },
+        {
+          "at": 5.5,
+          "act": "remove"
+        }
+      ],
+      "salt": "s310-"
+    },
+    "ring": {
+      "kind": "ring",
+      "mode": "ring",
+      "vnodes": 1,
+      "keys": 100,
+      "servers": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "period": 8,
+      "script": [
+        {
+          "at": 2,
+          "act": "add"
+        },
+        {
+          "at": 5.5,
+          "act": "remove"
+        }
+      ],
+      "salt": "s310-"
+    },
+    "vnodes": {
+      "kind": "ring",
+      "mode": "ring",
+      "vnodes": 1,
+      "keys": 100,
+      "servers": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "period": 8,
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "vnodes",
+          "label": "Positions per server",
+          "options": [
+            [
+              1,
+              "1"
+            ],
+            [
+              100,
+              "100"
+            ]
+          ]
+        }
+      ]
+    },
+    "playground": {
+      "kind": "ring",
+      "mode": "ring",
+      "vnodes": 1,
+      "keys": 100,
+      "servers": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "period": 8,
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "mode",
+          "label": "",
+          "options": [
+            [
+              "mod",
+              "hash mod N"
+            ],
+            [
+              "ring",
+              "Ring"
+            ]
+          ]
+        },
+        {
+          "type": "toggle",
+          "key": "vnodes",
+          "label": "Positions",
+          "options": [
+            [
+              1,
+              "1"
+            ],
+            [
+              10,
+              "10"
+            ],
+            [
+              100,
+              "100"
+            ]
+          ]
+        },
+        {
+          "type": "action",
+          "actions": [
+            [
+              "add",
+              "Add server"
+            ],
+            [
+              "remove",
+              "Remove server"
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "Karger et al.: Consistent hashing and random trees (1997)",
+      "url": "https://cs.brown.edu/courses/csci2950-u/f09/papers/chash97stoc.pdf",
+      "note": "The paper that introduced consistent hashing, for distributed web caches.",
+      "type": "paper"
+    },
+    {
+      "label": "Amazon: Dynamo, Amazon's highly available key-value store",
+      "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html",
+      "note": "Section 4.2 describes the ring and virtual nodes.",
+      "type": "paper"
+    },
+    {
+      "label": "NGINX: HTTP load balancing",
+      "url": "https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/",
+      "note": "The hash directive with the consistent parameter.",
+      "type": "docs"
+    }
+  ]
+}

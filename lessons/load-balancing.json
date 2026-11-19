@@ -1,0 +1,339 @@
+{
+  "slug": "load-balancing",
+  "course": "System Design, Visually",
+  "part": "Scaling the web tier",
+  "title": "Load balancing",
+  "summary": "How one address can spread requests across many servers, how it picks a server, and what happens when one fails.",
+  "minutes": 11,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "One server can only do so much. Say each request takes about **150 ms** of work, so one server finishes about **6 or 7 requests a second**. Send it 9 a second and requests arrive faster than they leave. They wait in a queue, and the wait grows every second."
+        },
+        {
+          "figure": "one-server",
+          "caption": "One server, 9 requests a second, room for about 7. Each dot in the chart is one response. Watch response times climb."
+        },
+        {
+          "p": "You can buy a bigger server, but only up to a point, and one server is still one thing that can fail. The other option is to run several servers. Then clients need one address to send requests to, and something has to share the requests out. That is a **load balancer**."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "Clients send every request to the load balancer's address. For each request, the load balancer picks a server, forwards the request, and passes the response back. Clients never see the servers behind it, so you can add or remove servers without telling them."
+        },
+        {
+          "p": "The interesting part is how it picks a server."
+        },
+        {
+          "h3": "Round robin"
+        },
+        {
+          "p": "Send each request to the next server in turn: 1, 2, 3, 1, 2, 3. It needs no information about the servers, and when they are all the same it spreads the load evenly."
+        },
+        {
+          "figure": "round-robin",
+          "caption": "Round robin across three identical servers. Each gets a third of the traffic and queues stay short."
+        },
+        {
+          "h3": "When servers are not the same"
+        },
+        {
+          "p": "Round robin assumes every server is equally fast and every request costs the same. Often neither is true. Here server 3 runs at **40% speed**. Round robin still sends it a third of the requests, more than it can handle, so its queue grows while the other two sit partly idle."
+        },
+        {
+          "figure": "round-robin-slow",
+          "caption": "Round robin with one slow server. Its queue grows and its responses are the slow dots in the chart."
+        },
+        {
+          "h3": "Least connections"
+        },
+        {
+          "p": "Send each request to the server with the fewest requests in progress. A slow server finishes requests more slowly, so it has more in progress, so it gets fewer new ones. The load balancer adapts without being told which server is slow."
+        },
+        {
+          "figure": "least-connections",
+          "caption": "Least connections with the same slow server. It now gets only what it can handle."
+        },
+        {
+          "h3": "Random, and two random choices"
+        },
+        {
+          "p": "Picking a server at random is simple and needs no shared state, which matters when there are many load balancers. On its own it is uneven. A small change fixes most of that: pick two servers at random and send the request to the less busy one. Michael Mitzenmacher's analysis of this idea found that [two choices instead of one](https://www.eecs.harvard.edu/~michaelm/abstracts/tpds2001.html) gives an exponential improvement in time spent waiting, and that a third choice adds much less."
+        },
+        {
+          "h3": "Health checks"
+        },
+        {
+          "p": "A load balancer has to stop sending requests to a server that has failed. It finds out in two ways. With **active checks**, it requests a health URL on each server at a fixed interval. With **passive checks**, it watches real requests and marks a server as down after a number of failures."
+        },
+        {
+          "p": "Either way, finding out takes time. Requests sent to the failed server before the load balancer notices will fail."
+        },
+        {
+          "figure": "health-check",
+          "caption": "Server 2 fails at 3 s. Requests sent to it fail until the load balancer notices 1.5 s later and stops using it."
+        },
+        {
+          "h3": "Sticky sessions"
+        },
+        {
+          "p": "Some applications keep a user's session in the memory of one server. Then every request from that user has to reach the same server. Load balancers can do this, usually with a cookie, and it is called a **sticky session**. The cost is uneven load and lost sessions when a server fails. The usual fix is to keep session data in a shared store so any server can handle any request. That is the subject of the lesson on stateless services."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**NGINX** uses round robin by default. It also offers `least_conn`, `ip_hash` (the same client usually reaches the same server) and `hash` with a key you choose. With `consistent`, adding or removing a server moves only a few keys, which suits caches; see the lesson on consistent hashing. Its passive health checks use `max_fails` and `fail_timeout`.",
+            "**AWS Application Load Balancer** uses round robin by default. It also offers least outstanding requests, which is least connections by another name, and weighted random. If too few servers are healthy, it sends traffic to all of them rather than to none, which AWS calls failing open.",
+            "**Draining.** When you remove a server on purpose, the load balancer should stop sending it new requests but let the ones in progress finish. On AWS this is the deregistration delay, 300 seconds by default."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        {
+          "p": "Pick an algorithm, make one server slow, and change the traffic. Watch the longest queue and the p95 response time, which is the time 95% of responses beat."
+        },
+        {
+          "figure": "playground",
+          "caption": "The playground. Three servers, with an optional slow one."
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "A load balancer gives clients one address and spreads their requests over many servers.",
+            "Round robin is even when servers and requests are alike. Least connections adapts when they are not.",
+            "Two random choices gets most of the benefit of least connections without shared state.",
+            "Health checks remove failed servers, but only after a delay. Requests sent in that gap fail."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "one-server": {
+      "kind": "lb",
+      "scene": {
+        "period": 9,
+        "rate": 9,
+        "start": 0.3,
+        "end": 7.2,
+        "work": 0.15,
+        "algo": "rr",
+        "servers": [
+          {
+            "label": "Server"
+          }
+        ]
+      }
+    },
+    "round-robin": {
+      "kind": "lb",
+      "scene": {
+        "period": 8,
+        "rate": 12,
+        "start": 0.3,
+        "end": 6.8,
+        "work": 0.15,
+        "algo": "rr",
+        "servers": [
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          }
+        ]
+      }
+    },
+    "round-robin-slow": {
+      "kind": "lb",
+      "scene": {
+        "period": 9,
+        "rate": 12,
+        "start": 0.3,
+        "end": 7.2,
+        "work": 0.15,
+        "algo": "rr",
+        "servers": [
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          },
+          {
+            "speed": 0.4
+          }
+        ]
+      }
+    },
+    "least-connections": {
+      "kind": "lb",
+      "scene": {
+        "period": 9,
+        "rate": 12,
+        "start": 0.3,
+        "end": 7.2,
+        "work": 0.15,
+        "algo": "least",
+        "servers": [
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          },
+          {
+            "speed": 0.4
+          }
+        ]
+      }
+    },
+    "health-check": {
+      "kind": "lb",
+      "scene": {
+        "period": 9,
+        "rate": 12,
+        "start": 0.3,
+        "end": 7.6,
+        "work": 0.15,
+        "algo": "rr",
+        "servers": [
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          }
+        ],
+        "health": {
+          "server": 1,
+          "down": 3,
+          "detect": 1.5
+        }
+      }
+    },
+    "playground": {
+      "kind": "lb",
+      "playground": true,
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "algo",
+          "label": "",
+          "options": [
+            [
+              "rr",
+              "Round robin"
+            ],
+            [
+              "random",
+              "Random"
+            ],
+            [
+              "least",
+              "Least connections"
+            ],
+            [
+              "two",
+              "Two random choices"
+            ]
+          ]
+        },
+        {
+          "type": "toggle",
+          "key": "slow",
+          "label": "Servers",
+          "options": [
+            [
+              0,
+              "All the same"
+            ],
+            [
+              1,
+              "One slow"
+            ]
+          ]
+        },
+        {
+          "type": "range",
+          "key": "rate",
+          "label": "Requests per second",
+          "min": 6,
+          "max": 18
+        }
+      ],
+      "ctrl": {
+        "algo": "rr",
+        "slow": 1,
+        "rate": 12
+      },
+      "scene": {
+        "period": 10,
+        "rate": 12,
+        "start": 0.3,
+        "end": 8.6,
+        "work": 0.15,
+        "algo": "rr",
+        "servers": [
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          },
+          {
+            "speed": 1
+          }
+        ]
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "NGINX: HTTP load balancing",
+      "url": "https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/",
+      "note": "Round robin, least_conn, ip_hash, hash and consistent hashing, and passive health checks.",
+      "type": "docs"
+    },
+    {
+      "label": "AWS: Application Load Balancer target group attributes",
+      "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html",
+      "note": "Routing algorithms, deregistration delay, failing open and sticky sessions.",
+      "type": "docs"
+    },
+    {
+      "label": "Mitzenmacher: The power of two choices in randomized load balancing",
+      "url": "https://www.eecs.harvard.edu/~michaelm/abstracts/tpds2001.html",
+      "note": "The analysis behind picking the less busy of two random servers.",
+      "type": "paper"
+    }
+  ]
+}

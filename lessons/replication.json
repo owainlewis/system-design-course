@@ -1,0 +1,157 @@
+{
+  "slug": "replication",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "Replication",
+  "summary": "Keeping copies of a database on several machines: leaders and followers, synchronous and asynchronous copying, lag, and quorums.",
+  "minutes": 11,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A database on one machine is lost when that machine's disk fails, and unavailable while it restarts. It can also only serve as many reads as one machine can." },
+        { "p": "**Replication** keeps a copy of the same data on several machines, called **replicas**. If one fails, another has the data. Reads can be spread across all of them. The hard part is keeping the copies in step while writes keep arriving." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "Leader and followers" },
+        { "p": "The most common design sends every write to one replica, the **leader**. The leader applies the write and sends a log of its changes to the other replicas, the **followers**, which apply them in the same order. Reads can go to any replica." },
+        { "h3": "Synchronous or asynchronous" },
+        { "p": "With **synchronous** replication, the leader waits until a follower confirms it has the write before telling the client the write succeeded. With **asynchronous** replication, the leader answers at once and sends the change afterwards." },
+        { "p": "Asynchronous is faster and keeps working when a follower is slow or down. But for a moment after each write, the followers are behind. That delay is **replication lag**." },
+        { "figure": "sync", "caption": "A user changes their name, then reloads their profile. With asynchronous replication, the read reaches a follower that hasn't caught up. Reading from the leader, or replicating synchronously, avoids it." },
+        { "p": "The fix in the third scenario is called **read-your-writes**: after a user writes, send that user's reads to the leader for a short time, or to a follower that has caught up." },
+        { "h3": "When the leader fails" },
+        { "p": "If the leader fails, a follower is promoted to leader. This is **failover**. With asynchronous replication, writes the old leader confirmed but hadn't yet sent are lost." },
+        { "figure": "failover", "caption": "The leader confirms a write, then fails before sending it on. The promoted follower never received it." },
+        { "h3": "Leaderless replication and quorums" },
+        { "p": "Some databases have no leader. The client sends each write to all N replicas and waits for W of them to confirm. Each read asks R replicas and takes the newest value. When W + R is greater than N, every read overlaps at least one replica that has the latest write. Amazon's [Dynamo paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf) describes this design." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**PostgreSQL replicates asynchronously by default.** Its [synchronous replication settings](https://www.postgresql.org/docs/current/warm-standby.html#SYNCHRONOUS-REPLICATION) make the leader wait for chosen standbys to confirm each commit.",
+          "**MySQL does too.** MySQL's [replication documentation](https://dev.mysql.com/doc/refman/8.0/en/replication.html) describes replication as asynchronous by default, with semisynchronous replication as an option.",
+          "**A common compromise.** Replicate synchronously to one nearby follower and asynchronously to the rest. One extra copy is always current, and slow followers don't hold up writes.",
+          "**Monitor lag.** Lag is usually milliseconds, but it grows under heavy writes or when a follower falls behind. Alert on it, because stale reads look like bugs."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Choose the number of replicas, how many must confirm a write, and how many a read asks." },
+        { "figure": "playground", "caption": "A leaderless quorum. Make W + R larger than N and the read overlap becomes at least one replica." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "Replication keeps copies on several machines for durability, availability and read capacity.",
+          "Leader-follower replication sends writes to one leader, which streams changes to followers.",
+          "Asynchronous replication is fast but lags, and can lose recent writes on failover.",
+          "In a leaderless quorum, W + R > N makes every read include the latest write."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "sync": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "client", "label": "Client", "short": "Client", "icon": "browser" },
+        { "id": "leader", "label": "Leader", "short": "Leader", "icon": "store" },
+        { "id": "follower", "label": "Follower", "short": "Follower", "icon": "store" }
+      ],
+      "scenarios": {
+        "async": {
+          "label": "Asynchronous",
+          "note": "the user sees their old name",
+          "state": { "leader": "name: Ana", "follower": "name: Ana" },
+          "steps": [
+            { "from": "client", "to": "leader", "label": "SET name = Ann", "set": { "leader": "name: Ann" } },
+            { "from": "leader", "to": "client", "label": "OK", "kind": "answer" },
+            { "from": "client", "to": "follower", "label": "GET name" },
+            { "from": "follower", "to": "client", "label": "Ana", "kind": "fail" },
+            { "from": "leader", "to": "follower", "label": "Change: name = Ann", "set": { "follower": "name: Ann" } }
+          ]
+        },
+        "sync": {
+          "label": "Synchronous",
+          "note": "slower write, but the follower is current",
+          "state": { "leader": "name: Ana", "follower": "name: Ana" },
+          "steps": [
+            { "from": "client", "to": "leader", "label": "SET name = Ann", "set": { "leader": "name: Ann" } },
+            { "from": "leader", "to": "follower", "label": "Change: name = Ann", "set": { "follower": "name: Ann" } },
+            { "from": "follower", "to": "leader", "label": "Have it", "kind": "refer" },
+            { "from": "leader", "to": "client", "label": "OK", "kind": "answer" },
+            { "from": "client", "to": "follower", "label": "GET name" },
+            { "from": "follower", "to": "client", "label": "Ann", "kind": "answer" }
+          ]
+        },
+        "ryw": {
+          "label": "Async, read from leader",
+          "note": "read-your-writes: this user's reads go to the leader for a while",
+          "state": { "leader": "name: Ana", "follower": "name: Ana" },
+          "steps": [
+            { "from": "client", "to": "leader", "label": "SET name = Ann", "set": { "leader": "name: Ann" } },
+            { "from": "leader", "to": "client", "label": "OK", "kind": "answer" },
+            { "from": "client", "to": "leader", "label": "GET name" },
+            { "from": "leader", "to": "client", "label": "Ann", "kind": "answer" },
+            { "from": "leader", "to": "follower", "label": "Change: name = Ann", "set": { "follower": "name: Ann" } }
+          ]
+        }
+      }
+    },
+    "failover": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "client", "label": "Client", "short": "Client", "icon": "browser" },
+        { "id": "leader", "label": "Leader", "short": "Leader", "icon": "store" },
+        { "id": "follower", "label": "Follower", "short": "Follower", "icon": "store" }
+      ],
+      "state": { "leader": "orders: 41", "follower": "orders: 41" },
+      "steps": [
+        { "from": "client", "to": "leader", "label": "Add order 42", "set": { "leader": "orders: 42" } },
+        { "from": "leader", "to": "client", "label": "OK", "kind": "answer" },
+        { "from": "leader", "to": "leader", "label": "Leader fails", "kind": "fail", "set": { "leader": "down" } },
+        { "from": "leader", "to": "follower", "label": "Change never sent", "kind": "lost" },
+        { "from": "follower", "to": "follower", "label": "Promoted to leader", "set": { "follower": "leader, orders: 41" } },
+        { "from": "client", "to": "follower", "label": "GET order 42" },
+        { "from": "follower", "to": "client", "label": "Not found", "kind": "fail" }
+      ]
+    },
+    "playground": {
+      "kind": "calc",
+      "controls": [
+        { "type": "range", "key": "n", "label": "Replicas (N)", "min": 1, "max": 7 },
+        { "type": "range", "key": "w", "label": "Write confirms (W)", "min": 1, "max": 7 },
+        { "type": "range", "key": "r", "label": "Read asks (R)", "min": 1, "max": 7 }
+      ],
+      "ctrl": { "n": 3, "w": 2, "r": 1 },
+      "rows": [
+        { "label": "Replicas each read overlaps with the latest write", "expr": "Math.max(0, Math.min(w, n) + Math.min(r, n) - n)", "show": "W + R − N, when positive", "format": "d0", "tone": "accent" },
+        { "label": "Reads always see the latest write?", "expr": "Math.min(w, n) + Math.min(r, n) > n ? 1 : 0", "show": "1 means yes: W + R > N", "format": "d0" },
+        { "label": "Replicas that can be down for writes", "expr": "Math.max(0, n - Math.min(w, n))", "show": "N − W", "format": "d0" },
+        { "label": "Replicas that can be down for reads", "expr": "Math.max(0, n - Math.min(r, n))", "show": "N − R", "format": "d0" }
+      ]
+    }
+  },
+  "references": [
+    { "label": "PostgreSQL: synchronous replication", "url": "https://www.postgresql.org/docs/current/warm-standby.html#SYNCHRONOUS-REPLICATION", "note": "Asynchronous by default, and how to make commits wait for standbys.", "type": "docs" },
+    { "label": "MySQL: replication", "url": "https://dev.mysql.com/doc/refman/8.0/en/replication.html", "note": "Asynchronous by default, with semisynchronous as an option.", "type": "docs" },
+    { "label": "DeCandia et al.: Dynamo, Amazon's highly available key-value store (SOSP 2007)", "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf", "note": "Leaderless replication with N, W and R.", "type": "paper" }
+  ]
+}

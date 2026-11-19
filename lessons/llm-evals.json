@@ -1,0 +1,272 @@
+{
+  "slug": "llm-evals",
+  "course": "System Design, Visually",
+  "part": "AI systems",
+  "title": "Evals in production",
+  "summary": "How to test a system built on a language model: a set of cases, graders that score the outputs, a check before every change, and a sample of real traffic after.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "You change a prompt to fix one bad answer. It works for that case. Did it break ten others? A model's output varies from run to run, and no unit test can check free text for exact equality."
+        },
+        {
+          "p": "Without a way to measure, every change is a guess, and switching to a new model is a leap of faith."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "An **eval** runs the system on a fixed set of cases and scores each output. It plays the part tests play in other code. Run it before every change to prompts, models, tools or retrieval, and compare the score with the current version."
+        },
+        {
+          "h3": "The case set"
+        },
+        {
+          "p": "Each case is an input and what a good output must do. Start with real requests, especially ones that went wrong. A few dozen cases that cover the important kinds of request beat thousands of made-up ones."
+        },
+        {
+          "h3": "Graders"
+        },
+        {
+          "list": [
+            "**Code checks.** Exact facts, valid JSON, the right tool called, a link present, a length limit. Fast, cheap and repeatable. Use them wherever they fit.",
+            "**A model as judge.** Another model scores the output against a written rubric, such as \"answers only from the given sources\". It handles qualities code can't check. Test it against human labels before trusting it.",
+            "**People.** Domain experts review a sample. Slow and costly, but they set the standard the other graders are checked against."
+          ]
+        },
+        {
+          "figure": "loop",
+          "caption": "Before shipping, a change runs against the case set and is compared with the current version. In production, a sample of real traffic is graded, and failures become new cases."
+        },
+        {
+          "h3": "How many cases"
+        },
+        {
+          "p": "A score from a small set is noisy. With 50 cases and an 80% pass rate, the true rate could plausibly be anywhere from about 69% to 91%. A change from 80% to 84% on 50 cases tells you almost nothing."
+        },
+        {
+          "figure": "margin",
+          "caption": "The 95% margin of error on a pass rate, and the smallest difference between two versions you can trust, from the number of cases."
+        },
+        {
+          "h3": "After shipping"
+        },
+        {
+          "p": "Real users ask things your case set doesn't cover. Log every request with its trace, as in the observability lesson. Grade a sample every day with the same graders, and watch the pass rate like any other metric. Read the failures, and add the instructive ones to the case set."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Model judges agree with people about as often as people agree with each other.** [Zheng and others](https://arxiv.org/abs/2306.05685) found that strong models as judges matched human preferences over 80% of the time. They also found biases toward the first answer shown and toward longer answers.",
+            "**Report error bars.** Anthropic's [A statistical approach to model evaluations](https://www.anthropic.com/research/statistical-approach-to-model-evals) recommends reporting the standard error with every eval score, and comparing two models question by question.",
+            "**Look at the data.** Hamel Husain's [Your AI Product Needs Evals](https://hamel.dev/blog/posts/evals/) argues for reading many real traces before writing graders, and for building evals step by step.",
+            "**Keep the set fresh.** A case set that never changes stops catching new failures. Add cases from production, and keep a few that the system still fails."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "An eval runs the system on a fixed set of cases and scores each output.",
+            "Use code checks where you can, a model judge where you must, and people to check both.",
+            "Small sets give noisy scores, so check the margin of error before trusting a difference.",
+            "Grade a sample of production traffic, and turn failures into new cases."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "loop": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "dev",
+          "label": "Engineer",
+          "short": "Eng",
+          "icon": "user"
+        },
+        {
+          "id": "run",
+          "label": "Eval runner",
+          "short": "Runner",
+          "icon": "server"
+        },
+        {
+          "id": "app",
+          "label": "App and model",
+          "short": "App",
+          "icon": "bot"
+        },
+        {
+          "id": "grade",
+          "label": "Graders",
+          "short": "Graders",
+          "icon": "book"
+        }
+      ],
+      "scenarios": {
+        "offline": {
+          "label": "Before shipping",
+          "note": "the change scores higher than the current version",
+          "state": {
+            "run": "200 cases"
+          },
+          "steps": [
+            {
+              "from": "dev",
+              "to": "run",
+              "label": "New prompt"
+            },
+            {
+              "from": "run",
+              "to": "app",
+              "label": "Run 200 cases"
+            },
+            {
+              "from": "app",
+              "to": "run",
+              "label": "200 outputs",
+              "kind": "refer"
+            },
+            {
+              "from": "run",
+              "to": "grade",
+              "label": "Grade outputs"
+            },
+            {
+              "from": "grade",
+              "to": "run",
+              "label": "184 pass; current version 166",
+              "kind": "refer"
+            },
+            {
+              "from": "run",
+              "to": "dev",
+              "label": "Better by 9 points: ship",
+              "kind": "answer"
+            }
+          ]
+        },
+        "online": {
+          "label": "In production",
+          "note": "failures from real traffic become new cases",
+          "state": {
+            "run": "200 cases"
+          },
+          "steps": [
+            {
+              "from": "app",
+              "to": "run",
+              "label": "Sample 1% of traces"
+            },
+            {
+              "from": "run",
+              "to": "grade",
+              "label": "Grade the sample"
+            },
+            {
+              "from": "grade",
+              "to": "run",
+              "label": "12 failures",
+              "kind": "fail"
+            },
+            {
+              "from": "run",
+              "to": "dev",
+              "label": "Review the failures"
+            },
+            {
+              "from": "dev",
+              "to": "run",
+              "label": "Add 12 cases",
+              "set": {
+                "run": "212 cases"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "margin": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "n",
+          "label": "Cases",
+          "min": 10,
+          "max": 2000,
+          "step": 10
+        },
+        {
+          "type": "range",
+          "key": "p",
+          "label": "Pass rate (%)",
+          "min": 50,
+          "max": 99
+        }
+      ],
+      "ctrl": {
+        "n": 50,
+        "p": 80
+      },
+      "formats": {
+        "m": "d1"
+      },
+      "rows": [
+        {
+          "key": "m",
+          "label": "Margin of error (± points)",
+          "expr": "1.96 * Math.sqrt(p / 100 * (1 - p / 100) / n) * 100",
+          "show": "1.96 × √(p × (1 − p) ÷ {n})",
+          "format": "d1"
+        },
+        {
+          "label": "Smallest difference you can trust (points)",
+          "expr": "m * Math.SQRT2",
+          "show": "{m} × √2, for two versions",
+          "format": "d1",
+          "tone": "accent"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "Zheng et al.: Judging LLM-as-a-judge with MT-Bench and Chatbot Arena (2023)",
+      "url": "https://arxiv.org/abs/2306.05685",
+      "note": "How well model judges agree with people, and their biases.",
+      "type": "paper"
+    },
+    {
+      "label": "Anthropic: A statistical approach to model evaluations",
+      "url": "https://www.anthropic.com/research/statistical-approach-to-model-evals",
+      "note": "Error bars and paired comparisons for eval scores.",
+      "type": "engineering"
+    },
+    {
+      "label": "Hamel Husain: Your AI product needs evals",
+      "url": "https://hamel.dev/blog/posts/evals/",
+      "note": "A practical guide to building evals from real traces.",
+      "type": "engineering"
+    }
+  ]
+}

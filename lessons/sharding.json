@@ -1,0 +1,107 @@
+{
+  "slug": "sharding",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "Sharding",
+  "summary": "Splitting one database's data across several machines: choosing a shard key, range versus hash, and hot spots.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "Replication copies all the data to every replica. That helps with reads, but every replica still stores everything and applies every write. When the data no longer fits on one machine, or one machine can't keep up with the writes, copies don't help." },
+        { "p": "**Sharding** splits the data instead. Each machine, called a **shard**, holds part of the rows and handles the writes for that part. Four shards can hold four times the data and take four times the writes, if the split is even." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "Every row gets a **shard key**, such as a user ID. A router, or the client library, uses the key to decide which shard holds the row. There are two common ways to decide." },
+        { "list": [
+          "**By range.** Each shard owns a range of keys: 0 to 250,000 on shard 1, and so on. Rows with nearby keys sit together, so a range query reads one shard.",
+          "**By hash.** The router hashes the key and takes the result modulo the number of shards, or uses consistent hashing. Nearby keys land far apart, which spreads load evenly but scatters range queries across every shard."
+        ] },
+        { "figure": "even", "caption": "Writes with random keys, split by range and by hash over four shards. Both spread the load evenly." },
+        { "h3": "Hot spots" },
+        { "p": "The split is only as even as the keys. If keys grow over time, such as order IDs or timestamps, every new write has a key bigger than all the old ones. With range sharding, all new writes go to the last shard while the others sit idle." },
+        { "figure": "sequential", "caption": "New order IDs, each higher than the last. By range, every write lands on shard 4. By hash, the same writes spread over all four." },
+        { "p": "Hashing can't fix a single popular key. If one celebrity account gets 40% of all writes, its shard gets them whatever the method. The usual fix is to split that key, for example by adding a suffix from 0 to 9 and spreading the ten versions over different shards." },
+        { "figure": "hot-key", "caption": "40% of writes go to one key. Hashing spreads the rest, but the shard holding that key is still overloaded." },
+        { "h3": "What sharding costs" },
+        { "list": [
+          "**Queries across shards.** A query that doesn't include the shard key must ask every shard and combine the answers.",
+          "**Transactions across shards.** A change that touches rows on two shards needs a distributed transaction, which is slower and more complex, or a design that avoids it.",
+          "**Resharding.** Adding shards means moving data. With hash mod N, most rows move. The consistent hashing lesson shows how to move only a fair share."
+        ] }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**MongoDB offers both.** Its docs describe [ranged sharding](https://www.mongodb.com/docs/manual/core/ranged-sharding/) and [hashed sharding](https://www.mongodb.com/docs/manual/core/hashed-sharding/). The hashed page warns that a key that grows steadily, such as a timestamp, sends every insert to one shard under ranged sharding.",
+          "**DynamoDB shards by partition key.** Amazon's [partition key guide](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html) recommends keys with many distinct values, requested evenly, and describes adding a suffix to spread a hot key.",
+          "**Shard late.** Sharding makes every later change harder. Scale up, add read replicas and cache first, and shard when the write volume or data size leaves no other choice.",
+          "**Pick the key from your queries.** Choose the key that most queries filter by, such as the user or the tenant, so most queries touch one shard."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Choose the shard method and the kind of keys being written. Watch the bars for a shard that takes more than its share." },
+        { "figure": "playground", "caption": "Four shards. Find a combination where one shard turns red, then fix it." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "Sharding splits data across machines so each holds and writes only part of it.",
+          "Range sharding keeps nearby keys together. Hash sharding spreads them evenly.",
+          "Keys that grow over time make a hot spot under range sharding. One popular key makes a hot spot under any method.",
+          "Cross-shard queries, cross-shard transactions and resharding are the costs. Shard only when you must."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "even": {
+      "kind": "shards",
+      "scenarios": {
+        "range": { "label": "By range", "scene": { "period": 8, "rate": 12, "start": 0.3, "end": 7.6, "shards": 4, "by": "range", "keys": "uniform" } },
+        "hash": { "label": "By hash", "scene": { "period": 8, "rate": 12, "start": 0.3, "end": 7.6, "shards": 4, "by": "hash", "keys": "uniform" } }
+      }
+    },
+    "sequential": {
+      "kind": "shards",
+      "scenarios": {
+        "range": { "label": "By range", "scene": { "period": 8, "rate": 12, "start": 0.3, "end": 7.6, "shards": 4, "by": "range", "keys": "sequential" } },
+        "hash": { "label": "By hash", "scene": { "period": 8, "rate": 12, "start": 0.3, "end": 7.6, "shards": 4, "by": "hash", "keys": "sequential" } }
+      }
+    },
+    "hot-key": {
+      "kind": "shards",
+      "scene": { "period": 8, "rate": 12, "start": 0.3, "end": 7.6, "shards": 4, "by": "hash", "keys": "hot", "hotShare": 0.4 }
+    },
+    "playground": {
+      "kind": "shards",
+      "controls": [
+        { "type": "toggle", "key": "by", "label": "Split", "options": [["range", "By range"], ["hash", "By hash"]] },
+        { "type": "toggle", "key": "keys", "label": "Keys", "options": [["uniform", "Random"], ["sequential", "Growing IDs"], ["hot", "One hot key"]] }
+      ],
+      "ctrl": { "by": "range", "keys": "sequential" },
+      "scene": { "period": 8, "rate": 12, "start": 0.3, "end": 7.6, "shards": 4, "by": "range", "keys": "sequential", "hotShare": 0.4 }
+    }
+  },
+  "references": [
+    { "label": "MongoDB: ranged sharding", "url": "https://www.mongodb.com/docs/manual/core/ranged-sharding/", "note": "Range-based shard keys, and the problem with keys that grow steadily.", "type": "docs" },
+    { "label": "MongoDB: hashed sharding", "url": "https://www.mongodb.com/docs/manual/core/hashed-sharding/", "note": "Spreading data by a hash of the shard key.", "type": "docs" },
+    { "label": "Amazon DynamoDB: designing partition keys", "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html", "note": "Even distribution, and write sharding with key suffixes.", "type": "docs" }
+  ]
+}

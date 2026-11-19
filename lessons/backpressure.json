@@ -1,0 +1,90 @@
+{
+  "slug": "backpressure",
+  "course": "System Design, Visually",
+  "part": "Async and messaging",
+  "title": "Backpressure",
+  "summary": "What to do when work arrives faster than it can be done for longer than a queue can absorb: grow, reject, or slow the sender down.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A queue absorbs a short burst. But if work keeps arriving faster than consumers finish it, the queue grows without end. Every message waits longer than the one before." },
+        { "p": "Eventually the queue runs out of memory or disk, or messages wait so long that the result is useless. Nobody wants a password reset email an hour later. The system has to push back on the sender." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "**Backpressure** is a signal from a busy stage to the stage feeding it: slow down. The first step is to give the queue a limit. Then decide what happens when it is full." },
+        { "list": [
+          "**Reject.** New messages are refused while the queue is full. The sender gets an error straight away and can retry later or give up. Wait times stay bounded.",
+          "**Block.** The sender waits until there is space. Pressure moves back up the chain, to the sender and then to whatever feeds it.",
+          "**Grow.** No limit. Nothing is refused, but waits grow without bound, and memory with them."
+        ] },
+        { "figure": "full", "caption": "Two consumers handle about 4 messages a second. For 6 seconds, 6.5 a second arrive. With no limit the wait keeps growing. With a limit of 8, the queue either rejects messages or makes the producer wait." },
+        { "h3": "How fast a queue grows" },
+        { "p": "While work arrives faster than it is done, the queue grows by the difference every second. A message that joins the end waits for everything in front of it." },
+        { "figure": "growth", "caption": "Messages waiting after an overload, and how long the newest one waits." },
+        { "p": "This is why a limit matters. A bounded queue turns a long overload into some errors now, rather than slow answers for everyone later." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**TCP has backpressure built in.** The receiver advertises a window, the bytes it can accept. When its buffer fills the window shrinks and the sender stops, as [RFC 9293](https://www.rfc-editor.org/rfc/rfc9293) describes.",
+          "**Node.js streams signal it.** In Node.js, `write()` returns `false` when a stream's buffer is full, and the writer should wait for the `drain` event. See the [backpressuring in streams](https://nodejs.org/en/learn/modules/backpressuring-in-streams) guide.",
+          "**Reactive Streams makes the consumer ask.** In [Reactive Streams](https://www.reactive-streams.org/), a subscriber requests a number of items, and the publisher never sends more than requested.",
+          "**HTTP APIs reject.** A web service can't block its clients for long. It returns `429` or `503`, often with `Retry-After`, as in the rate limiting and load shedding lessons."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A queue only helps with bursts. A sustained overload makes it grow forever.",
+          "Give every queue a limit, and choose what happens when it is full.",
+          "Rejecting keeps waits short and tells the sender at once. Blocking moves the pressure back to the sender.",
+          "An unbounded queue hides an overload until waits, or memory, run out."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "full": {
+      "kind": "queue",
+      "still": 0.62,
+      "scenarios": {
+        "grow": { "label": "No limit", "note": "nothing refused, but waits keep growing", "scene": { "period": 14, "start": 0, "end": 12, "schedule": [{ "from": 0, "to": 2, "rate": 3 }, { "from": 2, "to": 8, "rate": 6.5 }, { "from": 8, "to": 12, "rate": 2 }], "consumers": 2, "work": 0.5 } },
+        "reject": { "label": "Limit 8, reject", "note": "some refused, waits stay short", "scene": { "period": 14, "start": 0, "end": 12, "schedule": [{ "from": 0, "to": 2, "rate": 3 }, { "from": 2, "to": 8, "rate": 6.5 }, { "from": 8, "to": 12, "rate": 2 }], "consumers": 2, "work": 0.5, "capacity": 8, "onFull": "reject" } },
+        "block": { "label": "Limit 8, block", "note": "the producer waits for space", "scene": { "period": 14, "start": 0, "end": 12, "schedule": [{ "from": 0, "to": 2, "rate": 3 }, { "from": 2, "to": 8, "rate": 6.5 }, { "from": 8, "to": 12, "rate": 2 }], "consumers": 2, "work": 0.5, "capacity": 8, "onFull": "block" } }
+      }
+    },
+    "growth": {
+      "kind": "calc",
+      "controls": [
+        { "type": "range", "key": "arrive", "label": "Arriving (messages a second)", "min": 100, "max": 2000, "step": 50 },
+        { "type": "range", "key": "done", "label": "Processed (messages a second)", "min": 100, "max": 2000, "step": 50 },
+        { "type": "range", "key": "mins", "label": "Overload lasts (minutes)", "min": 1, "max": 60 }
+      ],
+      "ctrl": { "arrive": 1200, "done": 1000, "mins": 10 },
+      "formats": { "backlog": "big" },
+      "rows": [
+        { "key": "grow", "label": "Queue grows by, per second", "expr": "Math.max(0, arrive - done)", "show": "{arrive} − {done}", "format": "d0" },
+        { "key": "backlog", "label": "Messages waiting at the end", "expr": "grow * mins * 60", "show": "{grow} × {mins} minutes", "format": "big" },
+        { "label": "Wait for the newest message (s)", "expr": "backlog / done", "show": "{backlog} ÷ {done} a second", "format": "d0", "tone": "accent" }
+      ]
+    }
+  },
+  "references": [
+    { "label": "RFC 9293: Transmission Control Protocol", "url": "https://www.rfc-editor.org/rfc/rfc9293", "note": "The receive window and flow control.", "type": "standard" },
+    { "label": "Node.js: backpressuring in streams", "url": "https://nodejs.org/en/learn/modules/backpressuring-in-streams", "note": "How Node.js streams signal a full buffer.", "type": "docs" },
+    { "label": "Reactive Streams", "url": "https://www.reactive-streams.org/", "note": "A standard for streams where the consumer sets the pace.", "type": "official" }
+  ]
+}

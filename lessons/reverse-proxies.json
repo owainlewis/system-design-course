@@ -1,0 +1,115 @@
+{
+  "slug": "reverse-proxies",
+  "course": "System Design, Visually",
+  "part": "Scaling the web tier",
+  "title": "Reverse proxies",
+  "summary": "The server in front of your servers: what it does for them, from TLS to caching to protecting them from slow clients.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "An app server's job is to run your code. But servers that face the internet have other work too. They must handle TLS, compress responses, serve static files, and cope with clients on slow mobile connections." },
+        { "p": "If every app server does all of that, every app server needs the certificates, the configuration and the spare capacity. A **reverse proxy** takes that work off them." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "A reverse proxy accepts requests from clients as if it were the server, then forwards them to the real servers behind it. Clients only ever see the proxy. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-3.7) calls this a **gateway**, also known as a reverse proxy: an intermediary that acts as the origin server for the client." },
+        { "p": "A forward proxy is the opposite. It acts for clients, for example a company proxy that all employees' browsers go through. A reverse proxy acts for servers." },
+        { "h3": "What it does" },
+        { "list": [
+          "**TLS termination.** The proxy holds the certificate and decrypts traffic. App servers behind it can speak plain HTTP on a private network.",
+          "**Routing.** It sends `/api/` to the API servers and `/images/` to an image service, or routes by host name.",
+          "**Load balancing.** It spreads requests over several servers, as in the load balancing lesson.",
+          "**Caching.** It keeps copies of responses that are safe to reuse and answers repeat requests itself.",
+          "**Buffering.** It reads the whole response from the app server quickly, then sends it to a slow client at whatever speed the client manages."
+        ] },
+        { "h3": "Caching at the proxy" },
+        { "figure": "cache", "caption": "The first request goes through to the app server, and the proxy keeps a copy. The second is answered by the proxy alone." },
+        { "h3": "Protecting servers from slow clients" },
+        { "p": "An app server often has a fixed number of workers. A worker that is sending a response to a phone on a weak signal is busy for the whole transfer, even though the work is done." },
+        { "p": "A proxy in front takes the response at datacenter speed, which frees the worker, and handles the slow transfer itself. NGINX does this by default: with [proxy buffering](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering) on, it receives the response from the server as soon as possible and stores it in buffers." },
+        { "figure": "buffering", "caption": "An app server's worker sending a 2 s download to a slow phone, with and without a proxy in front. Watch how long the worker stays busy." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Common reverse proxies** include NGINX, HAProxy and Envoy. Managed load balancers from cloud providers do the same jobs.",
+          "**The app sees the proxy's address.** Every request now comes from the proxy's IP. The proxy passes the client's address in a header, such as `Forwarded`, defined in [RFC 7239](https://www.rfc-editor.org/rfc/rfc7239), or the older `X-Forwarded-For`.",
+          "**Only trust that header from your proxy.** A client can send its own `Forwarded` header with any address in it. Accept the header only on requests that came through your proxy.",
+          "**Run more than one.** If all traffic goes through one proxy, that proxy is a single point of failure. Run at least two."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A reverse proxy sits in front of your servers and acts as the server for clients.",
+          "It handles TLS, routing, load balancing, caching and slow clients, so app servers don't have to.",
+          "Buffering frees app server workers from slow downloads.",
+          "The app must read the client's address from a header, and trust it only from the proxy."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "cache": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "browser", "label": "Browser", "short": "Browser", "icon": "browser" },
+        { "id": "proxy", "label": "Reverse proxy", "short": "Proxy", "icon": "balancer" },
+        { "id": "app", "label": "App server", "short": "App", "icon": "server" }
+      ],
+      "steps": [
+        { "from": "browser", "to": "proxy", "label": "GET /prices (TLS)" },
+        { "from": "proxy", "to": "proxy", "label": "Decrypt, nothing cached" },
+        { "from": "proxy", "to": "app", "label": "GET /prices (plain HTTP)" },
+        { "from": "app", "to": "proxy", "label": "200, cache for 60 s", "kind": "answer", "set": { "proxy": "cached: /prices, 60 s" } },
+        { "from": "proxy", "to": "browser", "label": "200 OK", "kind": "answer" },
+        { "from": "browser", "to": "proxy", "label": "GET /prices" },
+        { "from": "proxy", "to": "browser", "label": "200 OK, from cache", "kind": "answer" }
+      ],
+      "counter": { "from": "proxy", "to": "app", "label": "requests that reached the app server" }
+    },
+    "buffering": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["work", "worker busy"], ["net", "sending to the phone"]],
+      "scenarios": {
+        "direct": {
+          "label": "No proxy",
+          "note": "the worker is busy for the whole download",
+          "rows": [
+            { "label": "App worker", "spans": [{ "s": 0, "d": 50, "tone": "work", "text": "build" }, { "s": 50, "d": 2000, "tone": "work", "text": "sending" }] },
+            { "label": "Phone download", "s": 50, "d": 2000, "tone": "net" }
+          ]
+        },
+        "proxy": {
+          "label": "Proxy in front",
+          "note": "the worker is free after 55 ms",
+          "rows": [
+            { "label": "App worker", "spans": [{ "s": 0, "d": 50, "tone": "work", "text": "build" }, { "s": 50, "d": 5, "tone": "work" }] },
+            { "label": "Proxy buffers response", "s": 50, "d": 5, "tone": "net" },
+            { "label": "Phone download", "s": 55, "d": 2000, "tone": "net" }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "RFC 9110: HTTP semantics, intermediaries", "url": "https://www.rfc-editor.org/rfc/rfc9110#section-3.7", "note": "Defines proxies and gateways, also known as reverse proxies.", "type": "standard" },
+    { "label": "NGINX: ngx_http_proxy_module", "url": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html", "note": "proxy_pass, proxy_buffering and proxy caching.", "type": "docs" },
+    { "label": "RFC 7239: Forwarded HTTP extension", "url": "https://www.rfc-editor.org/rfc/rfc7239", "note": "The standard header for passing the client's address through a proxy.", "type": "standard" }
+  ]
+}

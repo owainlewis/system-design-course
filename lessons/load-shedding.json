@@ -1,0 +1,207 @@
+{
+  "slug": "load-shedding",
+  "course": "System Design, Visually",
+  "part": "Reliability",
+  "title": "Load shedding",
+  "summary": "Why an overloaded server should refuse some requests on purpose, so it can still answer the rest in time.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "A server can handle about 4 requests a second. For several seconds, 7 a second arrive. It tries to serve them all, so they queue up and each one waits longer than the last."
+        },
+        {
+          "p": "Clients don't wait forever. After 2 seconds they time out and give up. The server keeps working on requests nobody is waiting for. It stays busy at full speed, yet almost every answer arrives too late. Useful work, called **goodput**, collapses."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "**Load shedding** means refusing some requests on purpose when the server is over capacity. A fast refusal costs almost nothing. The capacity it saves goes to requests that can still be answered in time."
+        },
+        {
+          "figure": "shed",
+          "caption": "About 4 requests a second of capacity and 7 a second arriving. Clients give up after 2 s. Serving everything wastes most of the work on requests already abandoned. Shedding or limiting keeps every answer useful."
+        },
+        {
+          "h3": "Ways to shed"
+        },
+        {
+          "list": [
+            "**Limit the queue.** Reject a new request when too many are already waiting. The client gets a fast `503` and can retry elsewhere.",
+            "**Drop requests that are too old.** Before starting a request, check how long it has waited. If the client has probably given up, drop it instead of doing the work.",
+            "**Limit requests in progress.** Cap the requests being worked on at once, measured in testing, and reject above it.",
+            "**Shed by priority.** Drop the least important traffic first, such as background syncs or prefetches, and keep checkouts and logins."
+          ]
+        },
+        {
+          "p": "Shedding works best close to the edge, before the server spends effort on the request. A rejection after reading the body and querying the database saves little."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Amazon sheds load on purpose.** The Builders' Library article [Using load shedding to avoid overload](https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/) describes goodput falling under overload, and dropping work whose caller has already timed out.",
+            "**Google sheds by criticality.** The SRE book chapter [Handling Overload](https://sre.google/sre-book/handling-overload/) describes tagging requests with a criticality and rejecting the least critical first.",
+            "**Tell clients when to come back.** A `503 Service Unavailable` with `Retry-After`, from [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-15.6.4), says the overload is temporary.",
+            "**Shedding needs good retries.** If clients retry rejected requests at once, the load doesn't fall. Backoff and jitter, from the retries lesson, are part of the same design."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "Under overload, serving every request makes them all late, and the work is wasted.",
+            "Load shedding refuses some requests quickly so the rest finish in time.",
+            "Limit the queue, drop requests that have waited too long, or drop low-priority traffic first.",
+            "Shed early, before the server has spent effort on the request."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "shed": {
+      "kind": "queue",
+      "still": 0.7,
+      "scenarios": {
+        "all": {
+          "label": "Serve everything",
+          "note": "busy all the time, but most answers come too late",
+          "scene": {
+            "period": 14,
+            "start": 0,
+            "end": 12,
+            "schedule": [
+              {
+                "from": 0,
+                "to": 2,
+                "rate": 3
+              },
+              {
+                "from": 2,
+                "to": 9,
+                "rate": 7
+              },
+              {
+                "from": 9,
+                "to": 12,
+                "rate": 2
+              }
+            ],
+            "consumers": 2,
+            "work": 0.5,
+            "deadline": 2,
+            "producer": "Clients",
+            "consumer": "Worker",
+            "queue": "Waiting",
+            "unit": "requests"
+          }
+        },
+        "old": {
+          "label": "Drop old requests",
+          "note": "requests waiting over 1.5 s are dropped",
+          "scene": {
+            "period": 14,
+            "start": 0,
+            "end": 12,
+            "schedule": [
+              {
+                "from": 0,
+                "to": 2,
+                "rate": 3
+              },
+              {
+                "from": 2,
+                "to": 9,
+                "rate": 7
+              },
+              {
+                "from": 9,
+                "to": 12,
+                "rate": 2
+              }
+            ],
+            "consumers": 2,
+            "work": 0.5,
+            "deadline": 2,
+            "producer": "Clients",
+            "consumer": "Worker",
+            "queue": "Waiting",
+            "unit": "requests",
+            "shed": 1.5
+          }
+        },
+        "limit": {
+          "label": "Limit the queue",
+          "note": "a full queue rejects new requests at once",
+          "scene": {
+            "period": 14,
+            "start": 0,
+            "end": 12,
+            "schedule": [
+              {
+                "from": 0,
+                "to": 2,
+                "rate": 3
+              },
+              {
+                "from": 2,
+                "to": 9,
+                "rate": 7
+              },
+              {
+                "from": 9,
+                "to": 12,
+                "rate": 2
+              }
+            ],
+            "consumers": 2,
+            "work": 0.5,
+            "deadline": 2,
+            "producer": "Clients",
+            "consumer": "Worker",
+            "queue": "Waiting",
+            "unit": "requests",
+            "capacity": 6,
+            "onFull": "reject"
+          }
+        }
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "Amazon Builders' Library: Using load shedding to avoid overload",
+      "url": "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/",
+      "note": "Goodput, and how Amazon services shed load.",
+      "type": "engineering"
+    },
+    {
+      "label": "Google SRE book: Handling overload",
+      "url": "https://sre.google/sre-book/handling-overload/",
+      "note": "Per-request criticality and client-side throttling.",
+      "type": "engineering"
+    },
+    {
+      "label": "RFC 9110: 503 Service Unavailable",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110#section-15.6.4",
+      "note": "The status for a temporary overload.",
+      "type": "standard"
+    }
+  ]
+}

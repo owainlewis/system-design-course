@@ -1,0 +1,132 @@
+{
+  "slug": "cdns",
+  "course": "System Design, Visually",
+  "part": "Scaling the web tier",
+  "title": "CDNs",
+  "summary": "How a content delivery network serves copies of your content from near each user, and how it knows when a copy is stale.",
+  "minutes": 9,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "Your servers are in one region, say Virginia. A user in Sydney is about 16,000 km away. Light in fibre needs at least 160 ms for that round trip, and real routes are longer. A page that needs several round trips takes seconds to load." },
+        { "p": "A faster server doesn't help, because the time is spent on the distance. The only fix is to answer from somewhere closer." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "A **content delivery network**, or CDN, runs servers in many cities. These **edge servers** sit between users and your servers, which the CDN calls the **origin**. Each edge keeps copies of responses and answers repeat requests itself." },
+        { "h3": "Reaching the nearest edge" },
+        { "p": "The CDN has to send each user to a nearby edge. One way is DNS: the CDN's DNS servers answer with the address of an edge near the user. Another is **anycast**, where many edges announce the same IP address and the internet's routing delivers each packet to the nearest one, as [Cloudflare explains](https://www.cloudflare.com/learning/cdn/glossary/anycast-network/)." },
+        { "h3": "Hits and misses" },
+        { "p": "When the edge has a fresh copy, it answers at once. That is a **cache hit**. When it doesn't, it fetches the response from the origin, sends it on, and keeps a copy. That is a **cache miss**." },
+        { "figure": "hit-miss", "caption": "A user in Sydney requests an image twice. The first request goes all the way to the origin. The second is answered by the edge in Sydney." },
+        { "figure": "distance", "caption": "Loading one image from Sydney, from the origin in Virginia and from a nearby edge. Assumes a 200 ms round trip to Virginia and 10 ms to the edge." },
+        { "h3": "How long a copy stays fresh" },
+        { "p": "The origin controls caching with the `Cache-Control` response header, defined in [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111). `max-age=3600` lets any cache reuse the response for an hour. `s-maxage` sets a separate time for shared caches such as a CDN. `no-store` forbids caching." },
+        { "p": "Once a copy expires, the edge can ask the origin whether it changed, instead of downloading it again. If it hasn't, the origin answers `304 Not Modified` with no body." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Put a version in file names.** Name a file `app.3f9a2c.js` and give it a long `max-age`. When the file changes, its name changes, so no cache ever serves the old version.",
+          "**Purge when you must.** For content that keeps its URL, CDNs let you remove cached copies on demand. Amazon CloudFront calls this [invalidation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html).",
+          "**Serve stale while you refresh.** [RFC 5861](https://www.rfc-editor.org/rfc/rfc5861) defines `stale-while-revalidate`, which lets a cache serve an expired copy for a short time while it fetches a new one in the background.",
+          "**Not everything can be cached.** A page that shows a user's own account is different for every user. Mark it `private` so shared caches never store it, and serve it from the origin."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Set the share of requests the edge can answer, the hit ratio, and the round trip to the origin. See the effect on average latency and on the load reaching your origin." },
+        { "figure": "playground", "caption": "10,000 requests a second through a CDN. Raise the hit ratio from 50% to 95% and watch the origin load fall by a factor of 10." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A CDN answers requests from edge servers near users, so round trips are short.",
+          "DNS or anycast sends each user to a nearby edge.",
+          "The origin's Cache-Control header says how long each copy stays fresh.",
+          "Versioned file names make long cache times safe."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "hit-miss": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "user", "label": "User in Sydney", "short": "User", "icon": "browser" },
+        { "id": "edge", "label": "Edge in Sydney", "short": "Edge", "icon": "globe" },
+        { "id": "origin", "label": "Origin in Virginia", "short": "Origin", "icon": "server" }
+      ],
+      "steps": [
+        { "from": "user", "to": "edge", "label": "GET /logo.png" },
+        { "from": "edge", "to": "edge", "label": "Not cached: a miss" },
+        { "from": "edge", "to": "origin", "label": "GET /logo.png" },
+        { "from": "origin", "to": "edge", "label": "200, max-age=86400", "kind": "answer", "set": { "edge": "cached: logo.png, 1 day" } },
+        { "from": "edge", "to": "user", "label": "200 OK", "kind": "answer" },
+        { "from": "user", "to": "edge", "label": "GET /logo.png" },
+        { "from": "edge", "to": "user", "label": "200 OK, a hit", "kind": "answer" }
+      ],
+      "counter": { "from": "edge", "to": "origin", "label": "requests that crossed the ocean" }
+    },
+    "distance": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["net", "network"], ["work", "server work"]],
+      "scenarios": {
+        "origin": {
+          "label": "From the origin",
+          "note": "one 200 ms round trip",
+          "rows": [
+            { "label": "Request to Virginia", "s": 0, "d": 100, "tone": "net" },
+            { "label": "Origin reads the file", "s": 100, "d": 5, "tone": "work" },
+            { "label": "Response to Sydney", "s": 105, "d": 100, "tone": "net" }
+          ]
+        },
+        "edge": {
+          "label": "From the edge",
+          "note": "one 10 ms round trip",
+          "rows": [
+            { "label": "Request to the edge", "s": 0, "d": 5, "tone": "net" },
+            { "label": "Edge reads its copy", "s": 5, "d": 5, "tone": "work" },
+            { "label": "Response to the user", "s": 10, "d": 5, "tone": "net" }
+          ]
+        }
+      }
+    },
+    "playground": {
+      "kind": "calc",
+      "controls": [
+        { "type": "range", "key": "hit", "label": "Hit ratio (%)", "min": 0, "max": 99 },
+        { "type": "range", "key": "far", "label": "Round trip to origin (ms)", "min": 20, "max": 300, "step": 10 }
+      ],
+      "ctrl": { "hit": 50, "far": 200 },
+      "rows": [
+        { "label": "Answered by the edge", "expr": "10000 * hit / 100", "show": "10,000 × {hit}%", "format": "rate" },
+        { "key": "originLoad", "label": "Sent on to the origin", "expr": "10000 * (100 - hit) / 100", "show": "10,000 × (100 − {hit})%", "format": "rate", "tone": "accent" },
+        { "label": "Average latency, in ms", "expr": "10 + (100 - hit) / 100 * far", "show": "10 ms to the edge, plus {far} ms on every miss", "format": "d0", "tone": "accent" }
+      ]
+    }
+  },
+  "references": [
+    { "label": "RFC 9111: HTTP caching", "url": "https://www.rfc-editor.org/rfc/rfc9111", "note": "Cache-Control, freshness, shared caches and revalidation.", "type": "standard" },
+    { "label": "RFC 5861: HTTP Cache-Control extensions for stale content", "url": "https://www.rfc-editor.org/rfc/rfc5861", "note": "stale-while-revalidate and stale-if-error.", "type": "standard" },
+    { "label": "Amazon CloudFront: invalidating files", "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html", "note": "Removing cached copies before they expire.", "type": "docs" },
+    { "label": "Cloudflare: what is an anycast network?", "url": "https://www.cloudflare.com/learning/cdn/glossary/anycast-network/", "note": "Many servers sharing one IP address, with routing picking the nearest.", "type": "docs" }
+  ]
+}

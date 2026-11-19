@@ -1,0 +1,109 @@
+{
+  "slug": "idempotency",
+  "course": "System Design, Visually",
+  "part": "Async and messaging",
+  "title": "Idempotency",
+  "summary": "Why a retried request can charge a customer twice, and how an idempotency key makes it safe to send the same request again.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A client asks the payment API to charge a card £20. The charge goes through, but the response is lost on the way back. The client sees a timeout." },
+        { "p": "The client can't tell what happened. The request may never have arrived, or it may have worked. If it retries, the customer may pay twice. If it doesn't, the order may go unpaid. Networks lose messages, so every client that retries meets this." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "An operation is **idempotent** if doing it twice has the same effect as doing it once. Setting a price to £20 is idempotent. Adding £20 to a balance is not." },
+        { "p": "HTTP defines some methods as idempotent. `GET`, `PUT` and `DELETE` are, because repeating them leaves the server in the same state. `POST` is not, so a retried `POST` may create a second order or a second charge." },
+        { "h3": "Idempotency keys" },
+        { "p": "To make a `POST` safe to retry, the client creates a unique **idempotency key** for the operation and sends it with the request. A retry sends the same key." },
+        { "p": "The server stores each key with the result of the request. When a key it has seen arrives again, it returns the stored result instead of doing the work again." },
+        { "figure": "retry", "caption": "The first response is lost and the client retries. Without a key the card is charged twice. With a key the server finds the first result and returns it." },
+        { "code": "POST /v1/charges\nIdempotency-Key: 8e03978e-40d5-43e8-bc93-6894a57f9324\n\n{ \"amount\": 2000, \"currency\": \"gbp\" }", "caption": "A charge with an idempotency key. The key is a random UUID made once per charge and reused on every retry." },
+        { "h3": "Getting it right" },
+        { "list": [
+          "**Save the key and the work together.** Record the key in the same database transaction as the charge. Otherwise a crash between the two can still repeat the work.",
+          "**Handle two copies at once.** A retry can arrive while the first request is still running. Lock the key, or reject the second request until the first finishes.",
+          "**Check the request matches.** If a key comes back with a different body, it is a client bug. Return an error rather than the old result.",
+          "**Expire old keys.** Keep keys long enough to cover any retry, such as a day, then delete them."
+        ] }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**HTTP names the idempotent methods.** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.2) defines which methods are idempotent, and says clients can retry those automatically.",
+          "**Stripe takes an idempotency key on POST.** Stripe's [idempotent requests](https://docs.stripe.com/api/idempotent_requests) store the first result for a key and return it for later requests with the same key.",
+          "**There is a draft standard header.** The IETF draft [The Idempotency-Key HTTP Header Field](https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/) proposes one header name and behaviour for all APIs.",
+          "**Consumers need it too.** A queue can deliver a message twice, so the consumer that handles it should be idempotent as well. The next lesson covers this."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A timeout doesn't tell the client whether the request worked, so it has to retry.",
+          "An idempotent operation has the same effect however many times it runs.",
+          "An idempotency key lets the server spot a retry and return the first result.",
+          "Store the key in the same transaction as the work, and handle duplicates that arrive at the same time."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "retry": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "client", "label": "Client", "short": "Client", "icon": "browser" },
+        { "id": "api", "label": "Payment API", "short": "API", "icon": "server" },
+        { "id": "db", "label": "Database", "short": "DB", "icon": "store" }
+      ],
+      "scenarios": {
+        "nokey": {
+          "label": "Retry without a key",
+          "note": "the customer paid twice",
+          "state": { "db": "charges: none" },
+          "steps": [
+            { "from": "client", "to": "api", "label": "POST charge £20" },
+            { "from": "api", "to": "db", "label": "Insert charge", "set": { "db": "charges: £20" } },
+            { "from": "api", "to": "client", "label": "OK", "kind": "lost" },
+            { "from": "client", "to": "client", "label": "Timeout: retry" },
+            { "from": "client", "to": "api", "label": "POST charge £20" },
+            { "from": "api", "to": "db", "label": "Insert charge", "set": { "db": "charges: £20, £20" }, "kind": "fail" },
+            { "from": "api", "to": "client", "label": "OK", "kind": "answer" }
+          ]
+        },
+        "key": {
+          "label": "Retry with a key",
+          "note": "charged once; the retry got the first result",
+          "state": { "db": "charges: none" },
+          "steps": [
+            { "from": "client", "to": "api", "label": "POST charge £20, key k1" },
+            { "from": "api", "to": "db", "label": "Insert charge and k1", "set": { "db": "charges: £20 (k1)" } },
+            { "from": "api", "to": "client", "label": "OK", "kind": "lost" },
+            { "from": "client", "to": "client", "label": "Timeout: retry with k1" },
+            { "from": "client", "to": "api", "label": "POST charge £20, key k1" },
+            { "from": "api", "to": "db", "label": "Look up k1" },
+            { "from": "db", "to": "api", "label": "Seen: stored result", "kind": "refer" },
+            { "from": "api", "to": "client", "label": "OK, the first result", "kind": "answer" }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "RFC 9110: HTTP semantics, idempotent methods", "url": "https://www.rfc-editor.org/rfc/rfc9110#section-9.2.2", "note": "Which HTTP methods are idempotent, and retrying them.", "type": "standard" },
+    { "label": "Stripe API: idempotent requests", "url": "https://docs.stripe.com/api/idempotent_requests", "note": "How a payment API uses idempotency keys.", "type": "docs" },
+    { "label": "IETF draft: The Idempotency-Key HTTP header field", "url": "https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/", "note": "A proposed standard header for idempotency keys.", "type": "standard" }
+  ]
+}

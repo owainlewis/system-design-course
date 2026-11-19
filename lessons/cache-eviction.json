@@ -1,0 +1,101 @@
+{
+  "slug": "cache-eviction",
+  "course": "System Design, Visually",
+  "part": "Caching",
+  "title": "Eviction and LRU",
+  "summary": "What a full cache throws away to make room, why least recently used is the usual answer, and where it goes wrong.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A cache is smaller than the data behind it. Once it is full, every miss that adds a new item must remove an old one. Removing an item to make room is called **eviction**." },
+        { "p": "The choice matters. Evict an item that is about to be read again and the next read misses. Evict an item nobody needs and the cache keeps working." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "The best possible choice" },
+        { "p": "The ideal policy evicts the item that will next be used furthest in the future. László Bélády described it in [a 1966 study of replacement algorithms](https://doi.org/10.1147/sj.52.0078). It can't be built, because it needs to know future requests. Real policies guess from the past." },
+        { "h3": "Least recently used" },
+        { "p": "**LRU** evicts the item that was read longest ago. The guess is that something read recently will be read again soon. Each read moves the item to the front. A new item goes in at the front, and the item at the back is evicted." },
+        { "figure": "lru", "caption": "A cache with 4 slots, kept in order of last use. Each hit moves a letter to the front. Each miss adds one at the front and evicts the one at the back." },
+        { "h3": "Other policies" },
+        { "list": [
+          "**FIFO**, first in first out, evicts the oldest item, however often it was read. It is simpler, but it throws out popular items on schedule.",
+          "**Random** evicts any item. It needs no bookkeeping at all and does better than you might expect.",
+          "**LFU**, least frequently used, evicts the item with the fewest reads. It keeps steady favourites, but it can hold on to items that were popular long ago."
+        ] },
+        { "figure": "compare", "caption": "A is read every second request. LRU never evicts it. FIFO evicts it when it becomes the oldest entry." },
+        { "h3": "Where LRU goes wrong" },
+        { "p": "One large scan, such as a report that reads every item once, fills an LRU cache with items nobody will read again. The scan evicts the popular items, and they all miss afterwards." },
+        { "figure": "scan", "caption": "A and B are popular. A one-off scan of C, D, E and F pushes them out, so they miss when they are read again." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Redis lets you choose.** Its [eviction settings](https://redis.io/docs/latest/develop/reference/eviction/) include LRU, LFU, random, and evicting the keys closest to expiry, either across all keys or only keys with a TTL.",
+          "**Redis approximates LRU.** Keeping every key in exact order costs memory, so Redis samples a few keys and evicts the least recently used among them. The same page describes how close the approximation gets.",
+          "**Exact LRU is cheap for small caches.** A hash map plus a linked list gives constant time lookups and moves. Many in-process caches use this.",
+          "**Measure, then choose.** Which policy wins depends on the access pattern. Measure the hit ratio on real traffic before changing the default."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "50 keys, a few of them popular. Change the cache size and the eviction policy, and compare hit ratios." },
+        { "figure": "playground", "caption": "With 10 slots, try LRU, FIFO and random. Then give the cache 40 slots and see the policies converge." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A full cache must evict an item for every new one.",
+          "The ideal choice is the item needed furthest in the future, which no real cache knows.",
+          "LRU evicts the item read longest ago, and suits most workloads.",
+          "A one-off scan can flush an LRU cache. LFU and other policies resist that."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "lru": {
+      "kind": "cache",
+      "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABCDABEABCDE", "capacity": 4, "policy": "lru", "db": 0.3 }
+    },
+    "compare": {
+      "kind": "cache",
+      "scenarios": {
+        "lru": { "label": "LRU", "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABACADAEAFAGAH", "capacity": 4, "policy": "lru", "db": 0.3 } },
+        "fifo": { "label": "FIFO", "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABACADAEAFAGAH", "capacity": 4, "policy": "fifo", "db": 0.3 } }
+      }
+    },
+    "scan": {
+      "kind": "cache",
+      "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABABABCDEFABAB", "capacity": 4, "policy": "lru", "db": 0.3 }
+    },
+    "playground": {
+      "kind": "cache",
+      "controls": [
+        { "type": "toggle", "key": "policy", "label": "Policy", "options": [["lru", "LRU"], ["fifo", "FIFO"], ["random", "Random"]] },
+        { "type": "toggle", "key": "capacity", "label": "Slots", "options": [[5, "5"], [10, "10"], [20, "20"], [40, "40"]] }
+      ],
+      "ctrl": { "policy": "lru", "capacity": 10 },
+      "scene": { "period": 10, "rate": 14, "start": 0.3, "end": 9, "keys": 50, "skew": 1.2, "capacity": 10, "policy": "lru", "db": 0.3 }
+    }
+  },
+  "references": [
+    { "label": "L. A. Bélády: A study of replacement algorithms for a virtual-storage computer (1966)", "url": "https://doi.org/10.1147/sj.52.0078", "note": "The optimal policy: evict what is needed furthest in the future.", "type": "paper" },
+    { "label": "Redis: key eviction", "url": "https://redis.io/docs/latest/develop/reference/eviction/", "note": "Eviction policies, and how Redis approximates LRU and LFU.", "type": "docs" }
+  ]
+}

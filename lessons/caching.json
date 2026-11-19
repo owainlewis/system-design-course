@@ -1,0 +1,188 @@
+{
+  "slug": "caching",
+  "course": "System Design, Visually",
+  "part": "Caching",
+  "title": "Caching",
+  "summary": "Keeping copies of data where they are fast to read: hit ratio, where caches live, and why a small cache often does most of the work.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Most of the time an app spends on a request goes to fetching data: a database query, a call to another service, a file from disk. Many of those fetches return the same answer as the last time someone asked."
+        },
+        {
+          "p": "Fetching it again costs time and load. A database that answers the same query 1,000 times a second does 1,000 times the work it needs to."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "A **cache** keeps copies of recent answers in a place that is faster to read than the original, usually memory. Before fetching, the app checks the cache. If the answer is there, that is a **hit**. If not, it is a **miss**: the app fetches from the database and keeps a copy for next time."
+        },
+        {
+          "p": "The share of reads that are hits is the **hit ratio**. It decides how much work the cache saves. At a 90% hit ratio, the database sees one read in ten."
+        },
+        {
+          "figure": "warmup",
+          "caption": "An app reading 50 different keys through a cache with room for 20. The cache starts empty. Watch the hit ratio climb as popular keys fill it."
+        },
+        {
+          "h3": "Why a small cache does a lot"
+        },
+        {
+          "p": "Requests are rarely spread evenly. A few items, such as the front page or a popular product, get most of the reads. A cache with room for those few items catches most requests, even though it holds a small part of the data."
+        },
+        {
+          "p": "When reads are spread evenly over every item, the same cache helps far less. Its hit ratio is about its size divided by the number of items."
+        },
+        {
+          "h3": "Where caches live"
+        },
+        {
+          "list": [
+            "**In the browser.** The HTTP caching rules in the CDN lesson let the browser reuse responses without asking at all.",
+            "**At the edge.** A CDN keeps copies near users.",
+            "**In the app's memory.** The fastest option, but each server has its own copy, and copies on different servers can disagree.",
+            "**In a shared cache service.** A separate in-memory store, such as Redis or Memcached, that every app server reads. One copy, one network round trip away.",
+            "**In the database.** Databases keep recently read pages in memory too. Reads that hit that memory skip the disk."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Facebook built a large shared cache.** Its paper [Scaling Memcache at Facebook](https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala) describes memcached as a demand-filled look-aside cache in front of its databases. The app checks the cache first and fills it after a miss.",
+            "**Cache what is read often and changes rarely.** Product pages and user profiles cache well. A bank balance that must always be current does not.",
+            "**A cache is a copy.** It can be out of date, and it can be lost. The data must still live somewhere authoritative. The invalidation lesson covers keeping copies fresh.",
+            "**Plan for an empty cache.** After a restart, every read is a miss. If the database can't handle the full load, a cache restart becomes an outage."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        {
+          "p": "Change the cache size, and whether a few keys are popular or every key is equally likely. Watch the hit ratio and the database reads."
+        },
+        {
+          "figure": "playground",
+          "caption": "50 keys behind a cache. Compare 20 slots with popular keys against 20 slots with even reads."
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "A cache keeps copies of answers somewhere faster than the original.",
+            "The hit ratio decides how much load the cache removes.",
+            "Uneven popularity lets a small cache catch most reads.",
+            "A cache is a copy: it can be stale, and it can be empty after a restart."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "warmup": {
+      "kind": "cache",
+      "scene": {
+        "period": 10,
+        "rate": 14,
+        "start": 0.3,
+        "end": 9,
+        "keys": 50,
+        "skew": 1.2,
+        "capacity": 20,
+        "policy": "lru",
+        "db": 0.3
+      }
+    },
+    "playground": {
+      "kind": "cache",
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "capacity",
+          "label": "Slots",
+          "options": [
+            [
+              0,
+              "None"
+            ],
+            [
+              5,
+              "5"
+            ],
+            [
+              20,
+              "20"
+            ],
+            [
+              50,
+              "50"
+            ]
+          ]
+        },
+        {
+          "type": "toggle",
+          "key": "skew",
+          "label": "Reads",
+          "options": [
+            [
+              1.2,
+              "A few keys popular"
+            ],
+            [
+              0,
+              "Every key equal"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "capacity": 20,
+        "skew": 1.2
+      },
+      "scene": {
+        "period": 10,
+        "rate": 14,
+        "start": 0.3,
+        "end": 9,
+        "keys": 50,
+        "skew": 1.2,
+        "capacity": 20,
+        "policy": "lru",
+        "db": 0.3
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "Nishtala et al.: Scaling Memcache at Facebook (NSDI 2013)",
+      "url": "https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala",
+      "note": "A look-aside cache in front of databases, at very large scale.",
+      "type": "paper"
+    },
+    {
+      "label": "RFC 9111: HTTP caching",
+      "url": "https://www.rfc-editor.org/rfc/rfc9111",
+      "note": "The caching rules browsers and CDNs follow.",
+      "type": "standard"
+    }
+  ]
+}

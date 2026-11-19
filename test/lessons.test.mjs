@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import vm from 'node:vm';
+import { checkLesson } from '../scripts/check.mjs';
 
 const root = new URL('..', import.meta.url).pathname;
 const read = p => readFileSync(root + p, 'utf8');
@@ -13,7 +14,7 @@ const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x)); const lerp = (a,
 const fmt = (n, d = 0) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 ${read('src/sim.js')}
 ${kinds.map(k => read('src/kinds/' + k)).join('\n')}
-globalThis.api = { KINDS, calcRun, tlEnd, tlSpans };
+globalThis.api = { KINDS, calcRun, tlEnd, tlSpans, caSimulate };
 globalThis.lookup = name => eval(name);`, ctx);
 export const api = ctx.api, lookup = ctx.lookup;
 const course = JSON.parse(read('course.json'));
@@ -56,6 +57,7 @@ const validators = {
 for (const slug of slugs) {
   test(`${slug}: every figure is well formed`, () => {
     const l = lesson(slug);
+    assert.deepEqual(checkLesson(l), [], 'passes the writing rules');
     assert.ok(course.parts.some(p => p.lessons.some(([s]) => s === slug)), 'listed in course.json');
     for (const [id, fig] of Object.entries(l.figures)) {
       assert.ok(api.KINDS[fig.kind || 'ratelimit'] || !fig.kind, `${id}: kind "${fig.kind}" exists`);
@@ -92,3 +94,23 @@ test('HTTP: HTTP/2 beats one HTTP/1.1 connection; on loss HTTP/3 delays only the
   assert.equal(fin(l.h2.rows, 'style.css'), fin(l.h2.rows, 'photo-1.jpg'));
 });
 test("estimates: Little's law example gives 400 requests in progress", () => assert.equal(2000 * 0.2, 400));
+
+/* ---------- caching ---------- */
+const ca = scene => { const m = api.caSimulate(scene); return { hit: m.reqs.filter(q => q.hit).length / m.reqs.length, db: m.dbQueries, stale: m.reqs.filter(q => q.stale).length }; };
+test('caching: popular keys give a much higher hit ratio than even reads with the same cache', () => {
+  const sc = lesson('caching').figures.playground.scene;
+  const skewed = ca(sc), even = ca({ ...sc, skew: 0 }), none = ca({ ...sc, capacity: 0 });
+  assert.ok(skewed.hit > 1.8 * even.hit, `skewed ${skewed.hit}, even ${even.hit}`); assert.equal(none.hit, 0);
+});
+test('eviction: LRU keeps the hot key that FIFO evicts, and a scan flushes LRU', () => {
+  const c = lesson('cache-eviction').figures;
+  assert.ok(ca(c.compare.scenarios.lru.scene).hit > ca(c.compare.scenarios.fifo.scene).hit);
+  const m = api.caSimulate(c.scan.scene), after = m.reqs.slice(10);
+  assert.equal(after[0].hit, false); assert.equal(after[1].hit, false);
+});
+test('invalidation: delete on write removes stale reads; coalescing turns a stampede into one read per expiry', () => {
+  const c = lesson('cache-invalidation').figures;
+  assert.ok(ca(c.stale.scenarios.ttl.scene).stale > 5); assert.equal(ca(c.stale.scenarios.delete.scene).stale, 0);
+  const herd = ca(c.stampede.scenarios.herd.scene).db, one = ca(c.stampede.scenarios.one.scene).db;
+  assert.ok(herd > 10 * one, `herd ${herd}, coalesced ${one}`);
+});

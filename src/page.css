@@ -42,7 +42,7 @@ b { font-weight: 600; }
 .bar .brand span { color: var(--muted); font-weight: 400; margin-left: 8px; }
 .bar .sp { flex: 1; }
 .bar .menu { display: none; padding: 6px 8px; }
-.bar .sub { text-decoration: none; font: 500 13px var(--sans); background: var(--ink); color: var(--bg); padding: 6px 12px; border-radius: 5px; }
+.bar .sub { text-decoration: none; white-space: nowrap; font: 500 13px var(--sans); background: var(--ink); color: var(--bg); padding: 6px 12px; border-radius: 5px; }
 
 .shell { display: grid; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 980px) { .shell { grid-template-columns: 268px minmax(0, 1fr); } }
@@ -154,13 +154,6 @@ td { color: var(--ink-2); }
 .next { font: 15px var(--sans); color: var(--ink-2); }
 .next a { margin-right: 18px; white-space: nowrap; }
 
-.signup { margin: 56px 0 0; padding: 28px 0 0; border-top: 1px solid var(--hair); }
-.signup h2 { font-size: 20px; margin-bottom: 6px; }
-.signup p { font: 15px/1.55 var(--sans); color: var(--ink-2); margin-bottom: 14px; }
-.signup form { display: flex; gap: 8px; flex-wrap: wrap; }
-.signup input[type=email] { flex: 1 1 220px; max-width: 320px; font: 15px var(--sans); padding: 9px 12px; border: 1px solid var(--hair-2); border-radius: 5px; background: var(--node); color: var(--ink); }
-.signup button { padding: 9px 16px; font-size: 14px; }
-.signup small { display: block; font: 12.5px var(--sans); color: var(--muted); margin-top: 10px; }
 footer { padding: 48px 0 64px; font: 13px var(--sans); color: var(--muted); }
 
 @media (max-width: 640px) {
@@ -192,4 +185,3 @@ footer { padding: 48px 0 64px; font: 13px var(--sans); color: var(--muted); }
 .home li a:hover { color: var(--accent); }
 .home li p { margin: 3px 0 0; font-size: 14.5px; color: var(--ink-2); }
 .home li .s { font: 12px var(--mono); color: var(--muted); flex: none; }
-.home .signup h2 { font: 600 20px/1.2 var(--sans); }

@@ -228,3 +228,11 @@ test('URL shortener: about 40 writes and 4,000 reads a second, 6 billion links, 
   const k = api.calcRun(f.keyspace, f.keyspace.ctrl).out[1].v; assert.ok(k < 0.2 && 100 / k > 500);
   assert.ok(ca(f.cache.scene).hit > 0.8, `hit ratio ${ca(f.cache.scene).hit}`);
 });
+
+test('pages link to the AI Engineer community and have no email form', () => {
+  for (const p of ['src/body.html', 'scripts/build.mjs']) {
+    const s = read(p);
+    assert.match(s, /href="https:\/\/www\.skool\.com\/aiengineer">Learn AI Engineering</, p);
+    assert.doesNotMatch(s, /type="email"/, p);
+  }
+});

@@ -432,7 +432,6 @@ function tocSpy() {
 
 function boot() {
 buildPage(); readColors();
-$('signup').addEventListener('submit', e => { e.preventDefault(); $('signup-note').textContent = 'This is a mockup, so nothing was sent.'; });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { readColors(); FIGS.forEach(f => f.cv._w = 0); });
 addEventListener('scroll', tocSpy, { passive: true }); tocSpy();
 document.fonts?.ready.then(() => FIGS.forEach(f => f.cv._w = 0));

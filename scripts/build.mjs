@@ -52,13 +52,12 @@ for (const l of lessons) {
 // Course home page: every part and lesson, with finished lessons linked.
 let n = 0;
 const total = course.parts.reduce((a, p) => a + p.lessons.length, 0);
-const homeBody = `<header class="bar"><a class="brand" href="${flat ? 'index.html' : '/'}">${esc(course.title)}<span>${total} lessons</span></a><span class="sp"></span><a class="sub" href="#get-lessons">Get new lessons</a></header>
+const homeBody = `<header class="bar"><a class="brand" href="${flat ? 'index.html' : '/'}">${esc(course.title)}<span>${total} lessons</span></a><span class="sp"></span><a class="sub" href="https://www.skool.com/aiengineer">Learn AI Engineering</a></header>
 <main class="home">
   <h1>${esc(course.title)}</h1>
   <p class="dek">A free course on how large systems work. Each lesson explains one idea in plain words, with diagrams you can run and change.</p>
   ${course.parts.map(p => `<h2>${esc(p.title)}</h2><ol>${p.lessons.map(([slug, title]) => { n++; const l = bySlug[slug];
     return `<li><i>${String(n).padStart(2, '0')}</i>${l ? `<div><a href="${href(slug)}">${esc(title)}</a><p>${esc(l.summary)}</p></div><span class="s">${l.minutes} min</span>` : `<span class="t">${esc(title)}</span><span class="s">Soon</span>`}</li>`; }).join('')}</ol>`).join('')}
-  <div class="signup col" id="get-lessons"><h2>Get new lessons</h2><p>One lesson a week, free.</p><form onsubmit="event.preventDefault();this.nextElementSibling.textContent='This is a mockup, so nothing was sent.'"><input type="email" required placeholder="you@company.com" aria-label="Email address"><button class="primary" type="submit">Subscribe</button></form><small></small></div>
 </main>`;
 writeFileSync(out + 'index.html', page({ title: course.title, summary: 'A free course on how large systems work, with interactive diagrams.', path: '', body: homeBody }).replace(`${esc(course.title)} · ${esc(course.title)}`, esc(course.title)));
 if (!flat) writeFileSync(out + '_headers', `/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n`);

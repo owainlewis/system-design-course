@@ -1,6 +1,8 @@
 const SPEC = JSON.parse(document.getElementById('lesson-spec').textContent);
 const COURSE = JSON.parse(document.getElementById('course-spec').textContent);
 const $ = id => document.getElementById(id);
+const FLAT = document.documentElement.hasAttribute('data-flat');
+const lessonHref = slug => FLAT ? `${slug}.html` : `/${slug}/`;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TIN = 0.55, TOUT = 0.5;
 const ALGOS = [['fixed', 'Fixed window'], ['log', 'Sliding log'], ['counter', 'Sliding counter'], ['token', 'Token bucket'], ['leaky', 'Leaky bucket']];
@@ -42,12 +44,13 @@ function buildPage() {
   document.title = SPEC.title;
   const all = COURSE.parts.flatMap(p => p.lessons.map(([slug, title]) => ({ slug, title, part: p.title })));
   const idx = all.findIndex(l => l.slug === SPEC.slug);
+  $('brand').href = FLAT ? 'index.html' : '/';
   $('brand').innerHTML = `${esc(COURSE.title)}<span>${all.length} lessons</span>`;
   $('crumb').innerHTML = `${esc(SPEC.part)}<span>·</span>Lesson ${idx + 1} of ${all.length}`;
   buildSidebar(all, idx);
   const ready = new Set(COURSE.ready || []);
   const prev = all.slice(0, idx).reverse().find(l => ready.has(l.slug)), next = all.slice(idx + 1).find(l => ready.has(l.slug));
-  $('pager').innerHTML = (prev ? `<a href="/${prev.slug}/"><small>Previous</small>${esc(prev.title)}</a>` : '') + (next ? `<a class="nx" href="/${next.slug}/"><small>Next</small>${esc(next.title)}</a>` : '');
+  $('pager').innerHTML = (prev ? `<a href="${lessonHref(prev.slug)}"><small>Previous</small>${esc(prev.title)}</a>` : '') + (next ? `<a class="nx" href="${lessonHref(next.slug)}"><small>Next</small>${esc(next.title)}</a>` : '');
   $('title').textContent = SPEC.title;
   $('dek').textContent = SPEC.summary;
   $('meta').textContent = `${SPEC.minutes} minute read · ${SPEC.sections.reduce((n, s) => n + s.blocks.filter(b => b.figure).length, 0)} interactive diagrams`;
@@ -76,7 +79,7 @@ function buildSidebar(all, cur) {
   $('parts').innerHTML = COURSE.parts.map(p => `<div class="part${open.includes(p.title) ? ' open' : ''}" data-part="${esc(p.title)}">
     <button aria-expanded="${open.includes(p.title)}">${CHEV}<span>${esc(p.title)}</span><span class="n">${p.lessons.length}</span></button>
     <ol>${p.lessons.map(([slug, title]) => { n++; const num = `<i>${String(n).padStart(2, '0')}</i><span>${esc(title)}</span>`;
-      return `<li data-q="${esc(title.toLowerCase())}">${(COURSE.ready || []).includes(slug) ? `<a href="/${slug}/"${slug === SPEC.slug ? ' aria-current="page"' : ''}>${num}</a>` : `<span class="soon" title="Coming soon">${num}</span>`}</li>`; }).join('')}</ol></div>`).join('') + '<p class="none" hidden>No lessons match.</p>';
+      return `<li data-q="${esc(title.toLowerCase())}">${(COURSE.ready || []).includes(slug) ? `<a href="${lessonHref(slug)}"${slug === SPEC.slug ? ' aria-current="page"' : ''}>${num}</a>` : `<span class="soon" title="Coming soon">${num}</span>`}</li>`; }).join('')}</ol></div>`).join('') + '<p class="none" hidden>No lessons match.</p>';
   $('count').textContent = `${COURSE.parts.length} parts · ${all.length} lessons`;
   const save = () => { try { localStorage.setItem('sdv-open', JSON.stringify([...document.querySelectorAll('.part.open')].map(e => e.dataset.part))); } catch {} };
   document.querySelectorAll('.part > button').forEach(b => b.onclick = () => { const p = b.parentElement; p.classList.toggle('open'); b.setAttribute('aria-expanded', p.classList.contains('open')); save(); });

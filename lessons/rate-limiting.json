@@ -66,7 +66,7 @@
         },
         {
           "code": "HTTP/1.1 429 Too Many Requests\nRetry-After: 2\nRateLimit-Policy: \"default\";q=5;w=1\nRateLimit: \"default\";r=0;t=2",
-          "caption": "A rejected request. The two RateLimit headers come from an IETF draft that is not yet a standard; they tell the client its quota (q requests per w seconds), how many requests it has left (r), and for how many more seconds that applies (t)."
+          "caption": "A rejected request. The two RateLimit headers come from an IETF draft that is not yet a standard. They tell the client its quota (q requests per w seconds), how many requests it has left (r), and for how many more seconds that applies (t)."
         }
       ]
     },

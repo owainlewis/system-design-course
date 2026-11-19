@@ -170,3 +170,34 @@ test('event logs: one key always lands in one partition, and a late group still 
   const late = m.reads[1].flat(); assert.equal(late.length, m.msgs.length); assert.ok(Math.min(...late) >= 5);
   assert.ok(Math.max(...late) < sc.period, 'the late group catches up before the loop ends');
 });
+
+/* ---------- reliability ---------- */
+test('timeouts: no timeout waits 10 s; a 1 s timeout and one retry finish in 1.35 s; 3 layers of 3 attempts give 27 calls', () => {
+  const f = lesson('timeouts-and-retries').figures;
+  assert.equal(end(f.timeout.scenarios.none.rows), 10000); assert.equal(end(f.timeout.scenarios.retry.rows), 1350);
+  assert.equal(api.calcRun(f.amplify, f.amplify.ctrl).out[0].v, 27);
+  const starts = sc => sc.rows.map(r => r.spans.map(s => s.s)), fixed = starts(f.jitter.scenarios.fixed), jit = starts(f.jitter.scenarios.jitter);
+  assert.equal(new Set(fixed.map(r => r.join())).size, 1, 'fixed backoff keeps clients in step');
+  assert.equal(new Set(jit.map(r => r[1])).size, jit.length, 'jitter spreads the first retry');
+});
+test('load shedding: serving everything wastes most work; shedding or a limit keeps every answer in time', () => {
+  const sc = lesson('load-shedding').figures.shed.scenarios;
+  const useful = s => { const m = api.qSimulate(s); const done = m.msgs.filter(x => x.start != null); return { ok: done.filter(x => x.wait <= s.deadline).length, late: done.filter(x => x.wait > s.deadline).length }; };
+  const all = useful(sc.all.scene), old = useful(sc.old.scene), lim = useful(sc.limit.scene);
+  assert.ok(all.late > all.ok, `late ${all.late}, in time ${all.ok}`);
+  assert.equal(old.late, 0); assert.equal(lim.late, 0); assert.ok(old.ok > all.ok && lim.ok > all.ok);
+});
+test('health checks: faster checks lose fewer requests', () => {
+  const sc = lesson('health-checks').figures.detect.scenarios;
+  assert.ok(sc.fast.scene.health.detect < sc.slow.scene.health.detect);
+});
+test('observability: p99 is over 7 times the average; 100 calls at 1% slow each make 63% of requests slow', () => {
+  const f = lesson('observability').figures, v = l => f.percentiles.items.find(i => i.label === l).value;
+  assert.ok(v('p99') / v('Average') > 7);
+  assert.equal(Math.round(api.calcRun(f.tail, f.tail.ctrl).out[0].v), 63);
+});
+test('SLOs: 99.9% allows under 9 hours a year and 99.999% about 5 minutes; 14.4 burn rate spends 2% in an hour', () => {
+  const items = lesson('slos').figures.nines.items, v = l => items.find(i => i.label === l).value;
+  assert.ok(v('99.9%') < 9 * 3600 && v('99.9%') > 8 * 3600); assert.equal(Math.round(v('99.999%') / 60), 5);
+  assert.ok(Math.abs(14.4 / (30 * 24) - 0.02) < 1e-9);
+});

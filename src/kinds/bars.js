@@ -1,5 +1,5 @@
 /* Bars: values compared on a linear or log scale. Bars grow in one at a time.
-   Figure def: { kind: 'bars', scale: 'log' | 'linear', format: 'time-ns' | 'bytes' | 'number', items | sets: { key: { label, items } } }
+   Figure def: { kind: 'bars', scale: 'log' | 'linear', format: 'time-ns' | 'time-ms' | 'duration' (seconds) | 'bytes' | 'number', items | sets: { key: { label, items } } }
    An item is { label, value, tone: 'accent' | 'red' | 'muted', note }. A 'scale' toggle may set ctrl.scale. */
 const BAR_STEP = 0.45, BAR_HOLD = 3;
 
@@ -8,6 +8,10 @@ function barFmt(v, kind) {
   if (kind === 'time-ns') {
     const u = [[1e9, 's'], [1e6, 'ms'], [1e3, 'µs'], [1, 'ns']].find(([k]) => v >= k) || [1, 'ns'];
     const x = v / u[0]; return `${fmt(x, x < 10 && x % 1 ? 1 : 0)} ${u[1]}`;
+  }
+  if (kind === 'duration') {   // seconds, shown in the largest unit that keeps the number at 1 or more
+    const u = [[86400, 'days'], [3600, 'hours'], [60, 'minutes'], [1, 's']].find(([k]) => v >= k) || [1, 's'];
+    const x = v / u[0]; return `${fmt(x, x < 10 ? 1 : 0)} ${u[1]}`;
   }
   if (kind === 'time-ms') return v >= 1000 ? `${fmt(v / 1000, v % 1000 ? 1 : 0)} s` : `${fmt(v)} ms`;
   if (kind === 'bytes') {

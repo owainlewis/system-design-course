@@ -12,8 +12,9 @@ function calcRun(def, ctrl) {
   return { env, out };
 }
 function calcFmt(v, kind) {
-  if (kind === 'bytes') return barFmt(v, 'bytes');
+  if (kind === 'bytes' || kind === 'duration') return barFmt(v, kind);
   if (kind === 'big') { const u = [[1e12, ' trillion'], [1e9, ' billion'], [1e6, ' million'], [1e3, ' thousand']].find(([k]) => Math.abs(v) >= k); return u ? `${fmt(v / u[0], v / u[0] < 10 ? 1 : 0)}${u[1]}` : fmt(v); }
+  if (kind === 'g') return Number(v).toLocaleString('en-US', { maximumFractionDigits: 3 });
   if (kind === 'rate') return `${fmt(v)} / s`;
   if (kind && kind.startsWith('d')) return fmt(v, +kind.slice(1));
   return fmt(v);

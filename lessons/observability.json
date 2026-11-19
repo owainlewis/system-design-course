@@ -1,0 +1,258 @@
+{
+  "slug": "observability",
+  "course": "System Design, Visually",
+  "part": "Reliability",
+  "title": "Logs, metrics and traces",
+  "summary": "The three kinds of telemetry, what each one answers, and why you watch percentiles rather than averages.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Users say checkout is slow. One request touches a gateway, five services and two databases. Each runs on many machines. Where did the time go?"
+        },
+        {
+          "p": "You can't attach a debugger to production. You can only answer from data the system recorded while it ran. **Observability** is how well that data lets you answer questions you didn't plan for."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "list": [
+            "**Metrics** are numbers counted or measured over time: requests a second, errors, latency, CPU. They are cheap to store and fast to query, so they drive dashboards and alerts. They tell you that something is wrong.",
+            "**Logs** are records of single events, such as one request or one error, with details. Structured logs, written as fields rather than free text, can be searched and grouped. They tell you what happened in one place.",
+            "**Traces** follow one request across services. Each step is a **span** with a start time and a length, and all spans share a trace ID. They tell you where the time went."
+          ]
+        },
+        {
+          "figure": "trace",
+          "caption": "A trace of one checkout request. Each bar is a span, nested under the call that made it. The pricing service's call to the tax API takes most of the 420 ms."
+        },
+        {
+          "p": "For a trace to cross services, each service passes the trace ID on in a header with every call it makes. Putting the trace ID in every log line links logs to traces too."
+        },
+        {
+          "h3": "Averages hide the slow requests"
+        },
+        {
+          "p": "Latency is not spread evenly. Most requests are fast and a few are very slow. The average sits between them and describes almost nobody. Percentiles are clearer: the 99th percentile, or **p99**, is the time that 99% of requests beat."
+        },
+        {
+          "figure": "percentiles",
+          "caption": "Latency for one endpoint, as an example. The average looks fine. One request in a hundred takes over 7 times as long as the average."
+        },
+        {
+          "p": "Slow requests matter more than their share suggests. A page that calls many backends waits for the slowest. The more calls it makes, the more likely one of them is slow."
+        },
+        {
+          "figure": "tail",
+          "caption": "The chance that a request waits on at least one slow call, when each call is slow one time in a hundred."
+        },
+        {
+          "h3": "What to measure"
+        },
+        {
+          "p": "For each service, start with four numbers: **latency**, **traffic**, **errors** and **saturation**, meaning how full the service is, such as CPU, memory or queue length. Measure latency of successful and failed requests separately, because fast errors can make latency look good."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**OpenTelemetry is the common standard.** [OpenTelemetry](https://opentelemetry.io/docs/concepts/signals/) defines traces, metrics and logs, with SDKs for most languages and a collector that sends data to any backend.",
+            "**Trace IDs travel in a standard header.** [W3C Trace Context](https://www.w3.org/TR/trace-context/) defines the `traceparent` header that carries the trace ID between services.",
+            "**Google's four golden signals.** The SRE book chapter [Monitoring Distributed Systems](https://sre.google/sre-book/monitoring-distributed-systems/) names latency, traffic, errors and saturation.",
+            "**The tail matters at scale.** Dean and Barroso's [The Tail at Scale](https://doi.org/10.1145/2408776.2408794) shows how a request that fans out to many servers is held up by the slowest one.",
+            "**Sample traces.** Recording every span of every request costs a lot. Most systems keep a sample, plus every trace that had an error or was slow."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "Metrics show that something is wrong, logs show what happened, and traces show where the time went.",
+            "Pass a trace ID with every call and put it in every log line.",
+            "Watch percentiles such as p99, not averages.",
+            "Start with latency, traffic, errors and saturation for every service."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "trace": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [
+        [
+          "net",
+          "request"
+        ],
+        [
+          "work",
+          "service work"
+        ],
+        [
+          "wait",
+          "database"
+        ],
+        [
+          "stall",
+          "slow call"
+        ]
+      ],
+      "rows": [
+        {
+          "label": "Gateway: POST /checkout",
+          "s": 0,
+          "d": 420,
+          "tone": "net",
+          "text": "420"
+        },
+        {
+          "label": "Auth: check token",
+          "depth": 1,
+          "s": 5,
+          "d": 15,
+          "tone": "work"
+        },
+        {
+          "label": "Cart: get cart",
+          "depth": 1,
+          "s": 25,
+          "d": 45,
+          "tone": "work"
+        },
+        {
+          "label": "Cart DB: SELECT",
+          "depth": 2,
+          "s": 30,
+          "d": 30,
+          "tone": "wait"
+        },
+        {
+          "label": "Pricing: quote",
+          "depth": 1,
+          "s": 75,
+          "d": 320,
+          "tone": "work"
+        },
+        {
+          "label": "Pricing DB: SELECT",
+          "depth": 2,
+          "s": 80,
+          "d": 15,
+          "tone": "wait"
+        },
+        {
+          "label": "Tax API: get rate",
+          "depth": 2,
+          "s": 100,
+          "d": 285,
+          "tone": "stall",
+          "text": "285"
+        },
+        {
+          "label": "Orders: create order",
+          "depth": 1,
+          "s": 398,
+          "d": 18,
+          "tone": "work"
+        }
+      ]
+    },
+    "percentiles": {
+      "kind": "bars",
+      "format": "time-ms",
+      "still": 0.99,
+      "items": [
+        {
+          "label": "Average",
+          "value": 120,
+          "tone": "accent"
+        },
+        {
+          "label": "p50",
+          "value": 80
+        },
+        {
+          "label": "p90",
+          "value": 210
+        },
+        {
+          "label": "p99",
+          "value": 900,
+          "tone": "accent"
+        },
+        {
+          "label": "p99.9",
+          "value": 2400
+        }
+      ],
+      "stat": "p99 is 7.5 times the average"
+    },
+    "tail": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "n",
+          "label": "Calls per request",
+          "min": 1,
+          "max": 200
+        }
+      ],
+      "ctrl": {
+        "n": 100
+      },
+      "rows": [
+        {
+          "label": "Requests that wait on a slow call (%)",
+          "expr": "(1 - Math.pow(0.99, n)) * 100",
+          "show": "1 − 0.99 to the power {n}",
+          "format": "d0",
+          "tone": "accent"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "OpenTelemetry: signals",
+      "url": "https://opentelemetry.io/docs/concepts/signals/",
+      "note": "Traces, metrics and logs as OpenTelemetry defines them.",
+      "type": "docs"
+    },
+    {
+      "label": "W3C Trace Context",
+      "url": "https://www.w3.org/TR/trace-context/",
+      "note": "The traceparent header.",
+      "type": "standard"
+    },
+    {
+      "label": "Google SRE book: Monitoring distributed systems",
+      "url": "https://sre.google/sre-book/monitoring-distributed-systems/",
+      "note": "The four golden signals.",
+      "type": "engineering"
+    },
+    {
+      "label": "Dean and Barroso: The tail at scale (CACM 2013)",
+      "url": "https://doi.org/10.1145/2408776.2408794",
+      "note": "Why slow outliers dominate requests that fan out.",
+      "type": "paper"
+    }
+  ]
+}

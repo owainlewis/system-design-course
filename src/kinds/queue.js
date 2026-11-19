@@ -1,7 +1,7 @@
 /* Queue: producers put messages on a queue; consumers take them off and work on them one at a time.
    Figure def: { kind: 'queue', scene: { period, start, end, schedule: [{ from, to, rate }], consumers, work,
                  capacity, onFull: 'grow' | 'reject' | 'block', shed } }
-   capacity limits the queue (Infinity when absent). 'reject' drops a message that finds the queue full; 'block'
+   producer, consumer, queue and unit rename the parts. deadline marks work started after the sender stopped waiting. capacity limits the queue (Infinity when absent). 'reject' drops a message that finds the queue full; 'block'
    makes the producer wait for space. shed, if set, drops a message that has waited longer than shed seconds when
    a consumer reaches it. Controls may set ctrl.consumers, ctrl.rate (scales the schedule's peak) and ctrl.onFull. */
 const Q_IN = 0.45, Q_OUT = 0.4;
@@ -91,7 +91,7 @@ KINDS.queue = {
       const x = Qb.x + Qb.w - 6 - (i + 1) * cw, on = i < L.q;
       rr(ctx, x + 2, Qb.y + 8, cw - 4, 16, 3); ctx.fillStyle = on ? rgba(COL.ink2, .75) : COL.fig; ctx.fill();
     }
-    const label = isFinite(sim.cap) ? `Queue · ${L.q} of ${sim.cap}` : `Queue · ${L.q}`;
+    const label = `${s.queue || 'Queue'} · ${L.q}` + (isFinite(sim.cap) ? ` of ${sim.cap}` : '');
     text(ctx, label, Qb.x + Qb.w / 2, Qb.y - 10, { align: 'center', size: 11.5, weight: 500, color: L.q >= sim.cap ? COL.red : COL.ink2 });
     if (L.q > slots) text(ctx, `+${L.q - slots}`, Qb.x - 6, Qb.y + 16, { align: 'right', size: 11, font: MONO, weight: 500, color: COL.ink2 });
 
@@ -104,12 +104,12 @@ KINDS.queue = {
       else if (m.shed) { const dt = lt - m.end; if (lt >= m.end && dt < .7) { p = { x: qOut.x + 8 + dt * 20, y: qOut.y + 12 + 90 * dt * dt }; col = COL.amber; a = 1 - dt / .7; } }
       else if (m.blockedAt != null && lt < m.enq) { p = { x: P.x + (portrait ? 30 : 34), y: P.y + (portrait ? 0 : -2) }; col = COL.amber; }
       else if (m.start != null && lt >= m.start && lt < m.start + Q_OUT) p = bez(qOut, K[m.consumer], ease((lt - m.start) / Q_OUT), portrait);
-      else if (m.start != null && lt >= m.start + Q_OUT && lt < m.end + Q_OUT) { const k = K[m.consumer]; p = portrait ? { x: k.x, y: k.y - 30 } : { x: k.x - 32, y: k.y }; col = COL.accent; }
+      else if (m.start != null && lt >= m.start + Q_OUT && lt < m.end + Q_OUT) { const k = K[m.consumer]; p = portrait ? { x: k.x, y: k.y - 30 } : { x: k.x - 32, y: k.y }; col = s.deadline && m.wait > s.deadline ? COL.amber : COL.accent; }
       if (!p) continue;
       ctx.globalAlpha = a; dot(ctx, p.x, p.y, 3, col); ctx.globalAlpha = 1;
     }
-    node(ctx, P.x, P.y, 'app', 'Producer', L.b ? `${L.b} waiting` : null, { subColor: COL.amber });
-    K.forEach((k, i) => node(ctx, k.x, k.y, 'server', C > 1 ? `Consumer ${i + 1}` : 'Consumer'));
+    node(ctx, P.x, P.y, 'app', s.producer || 'Producer', L.b ? `${L.b} waiting` : null, { subColor: COL.amber });
+    K.forEach((k, i) => node(ctx, k.x, k.y, 'server', C > 1 ? `${s.consumer || 'Consumer'} ${i + 1}` : (s.consumer || 'Consumer')));
 
     // queue length over time
     const ymax = Math.max(4, isFinite(sim.cap) ? sim.cap * 1.15 : 0, ...sim.samples.map(x => x.q)) * 1.05;
@@ -122,7 +122,7 @@ KINDS.queue = {
     sim.msgs.filter(m => (m.rejected || m.shed) && m.end <= now).forEach(m => { const x = X(m.end), y = chart.y + chart.h - 4; ctx.strokeStyle = m.shed ? COL.amber : COL.red; ctx.lineWidth = 1.2; line(ctx, { x: x - 3, y: y - 3 }, { x: x + 3, y: y + 3 }); line(ctx, { x: x + 3, y: y - 3 }, { x: x - 3, y: y + 3 }); ctx.lineWidth = 1; });
     const tick = ymax > 40 ? 20 : ymax > 16 ? 10 : 5;
     for (let v = tick; v < ymax; v += tick) { const y = Math.round(Y(v)) + .5; ctx.save(); ctx.setLineDash([2, 4]); ctx.strokeStyle = COL.hair; line(ctx, { x: chart.x, y }, { x: chart.x + chart.w, y }); ctx.restore(); text(ctx, `${v}`, chart.x - 8, y, { align: 'right', size: 10.5, font: MONO }); }
-    text(ctx, 'messages in the queue', chart.x, chart.y - 12, { size: 10.5, font: MONO });
+    text(ctx, `${s.unit || 'messages'} in the queue`, chart.x, chart.y - 12, { size: 10.5, font: MONO });
     // the incoming rate, as a faint band behind the chart
     ctx.strokeStyle = rgba(COL.ink, .35); line(ctx, { x: X(now), y: chart.y - 2 }, { x: X(now), y: chart.y + chart.h + 2 });
     for (let t = 0; t <= sim.P; t += sim.P > 8 ? 2 : 1) text(ctx, t + 's', X(t), chart.y + chart.h + 12, { align: 'center', size: 10.5, font: MONO });
@@ -131,6 +131,7 @@ KINDS.queue = {
     const done = sim.msgs.filter(m => m.start != null && m.end <= now), rej = sim.msgs.filter(m => m.rejected && m.end <= now).length, shed = sim.msgs.filter(m => m.shed && m.end <= now).length;
     const waiting = sim.msgs.filter(m => m.enq != null && m.enq <= now && (m.start == null || m.start > now) && !m.shed);
     const oldest = waiting.length ? Math.max(...waiting.map(m => now - m.enq)) : 0;
-    return `<span>processed ${done.length}</span><span class="${oldest > 2 ? 'bad' : ''}">oldest waiting ${fmt(oldest, 1)} s</span>` + (rej ? `<span class="bad">rejected ${rej}</span>` : '') + (shed ? `<span class="bad">dropped as too old ${shed}</span>` : '') + (f.def.scenarios?.[f.ctrl.scenario]?.note ? `<span>${f.def.scenarios[f.ctrl.scenario].note}</span>` : '');
+    const late = s.deadline ? done.filter(m => m.wait > s.deadline).length : 0;
+    return `<span>processed ${done.length}</span>` + (late ? `<span class="bad">${late} after the client gave up</span>` : '') + `<span class="${oldest > 2 ? 'bad' : ''}">oldest waiting ${fmt(oldest, 1)} s</span>` + (rej ? `<span class="bad">rejected ${rej}</span>` : '') + (shed ? `<span class="bad">dropped as too old ${shed}</span>` : '') + (f.def.scenarios?.[f.ctrl.scenario]?.note ? `<span>${f.def.scenarios[f.ctrl.scenario].note}</span>` : '');
   }
 };

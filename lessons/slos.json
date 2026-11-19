@@ -1,0 +1,294 @@
+{
+  "slug": "slos",
+  "course": "System Design, Visually",
+  "part": "Reliability",
+  "title": "SLOs and error budgets",
+  "summary": "How to say how reliable a service should be, measure it from the user's side, and use the gap to 100% to decide when to ship and when to fix.",
+  "minutes": 9,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Nothing is 100% reliable. Networks drop packets, disks fail and deploys have bugs. Each extra step toward 100% costs more and slows every release."
+        },
+        {
+          "p": "Without an agreed target, every incident is a crisis and every release is a risk argued from scratch. Product wants features, operations wants stability, and neither has a number to point to."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "list": [
+            "**SLI**, service level indicator. A measurement of what users experience, usually a ratio: good requests divided by all requests. For example, requests that succeeded in under 300 ms.",
+            "**SLO**, service level objective. The target for an SLI over a window, such as 99.9% of requests good over 30 days.",
+            "**SLA**, service level agreement. A promise to customers with a penalty, such as a refund. It is set looser than the SLO, so you hear about trouble before you owe money."
+          ]
+        },
+        {
+          "p": "Each extra nine cuts the allowed downtime by ten times."
+        },
+        {
+          "figure": "nines",
+          "caption": "Downtime allowed in a year at each target. 99.9% allows under 9 hours. 99.999% allows about 5 minutes."
+        },
+        {
+          "h3": "The error budget"
+        },
+        {
+          "p": "An SLO of 99.9% means 0.1% of requests may fail. That 0.1% is the **error budget**. While budget is left, the team ships features and takes risks. When it runs out, the team slows releases and works on reliability until the service is back within target."
+        },
+        {
+          "p": "This turns an argument into a rule both sides agreed in advance."
+        },
+        {
+          "figure": "budget",
+          "caption": "The error budget for a 30-day window, as time and as failed requests."
+        },
+        {
+          "h3": "Dependencies multiply"
+        },
+        {
+          "p": "A request that needs several services in a row only succeeds if all of them do. Their availabilities multiply, so the whole is less reliable than any part."
+        },
+        {
+          "figure": "chain",
+          "caption": "Availability of a request that needs every service in a chain, if each fails on its own."
+        },
+        {
+          "h3": "Alert on the budget"
+        },
+        {
+          "p": "Alert when the budget is being spent fast, not on every error. The rate of spending is the **burn rate**. A burn rate of 1 uses the whole budget in exactly the window. A rate of 14.4 spends 2% of a 30-day budget in one hour, which is worth waking someone up for."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**The SRE book defines the terms.** Google's [Service Level Objectives](https://sre.google/sre-book/service-level-objectives/) chapter explains SLIs, SLOs and SLAs, and why 100% is the wrong target.",
+            "**Write an error budget policy.** The SRE workbook's [example policy](https://sre.google/workbook/error-budget-policy/) says what the team does when the budget runs out, agreed before it happens.",
+            "**Burn-rate alerts.** The workbook chapter [Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/) works through alert designs, and uses a 14.4 burn rate over one hour as a page-worthy threshold.",
+            "**Measure from the user's side.** An SLI taken at the load balancer or client sees failures that a server's own metrics miss, such as requests that never reached it."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "An SLI measures what users experience. An SLO sets a target for it. An SLA adds a penalty and is looser.",
+            "The gap between the SLO and 100% is the error budget. Spend it on releases; when it runs out, fix reliability.",
+            "Services called in a chain multiply their availabilities.",
+            "Alert on how fast the budget burns, not on single errors."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "nines": {
+      "kind": "bars",
+      "format": "duration",
+      "still": 0.99,
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "scale",
+          "label": "Scale",
+          "options": [
+            [
+              "log",
+              "Log"
+            ],
+            [
+              "linear",
+              "Linear"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "scale": "log"
+      },
+      "items": [
+        {
+          "label": "99%",
+          "value": 315360
+        },
+        {
+          "label": "99.9%",
+          "value": 31536,
+          "tone": "accent"
+        },
+        {
+          "label": "99.95%",
+          "value": 15768
+        },
+        {
+          "label": "99.99%",
+          "value": 3154
+        },
+        {
+          "label": "99.999%",
+          "value": 315
+        }
+      ],
+      "stat": "each extra nine allows a tenth of the downtime"
+    },
+    "budget": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "slo",
+          "label": "SLO",
+          "options": [
+            [
+              99,
+              "99%"
+            ],
+            [
+              99.5,
+              "99.5%"
+            ],
+            [
+              99.9,
+              "99.9%"
+            ],
+            [
+              99.95,
+              "99.95%"
+            ],
+            [
+              99.99,
+              "99.99%"
+            ]
+          ]
+        },
+        {
+          "type": "range",
+          "key": "m",
+          "label": "Requests a month (millions)",
+          "min": 1,
+          "max": 1000
+        }
+      ],
+      "ctrl": {
+        "slo": 99.9,
+        "m": 100
+      },
+      "rows": [
+        {
+          "key": "bad",
+          "label": "Share of requests that may fail (%)",
+          "expr": "100 - slo",
+          "show": "100% − {slo}%",
+          "format": "g"
+        },
+        {
+          "label": "Downtime allowed in 30 days",
+          "expr": "bad / 100 * 30 * 86400",
+          "show": "{bad}% of 30 days",
+          "format": "duration"
+        },
+        {
+          "label": "Failed requests allowed in 30 days",
+          "expr": "bad / 100 * m * 1e6",
+          "show": "{bad}% of {m} million",
+          "format": "big",
+          "tone": "accent"
+        }
+      ],
+      "formats": {
+        "slo": "g",
+        "bad": "g"
+      }
+    },
+    "chain": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "n",
+          "label": "Services in the chain",
+          "min": 1,
+          "max": 10
+        },
+        {
+          "type": "toggle",
+          "key": "a",
+          "label": "Each service",
+          "options": [
+            [
+              99,
+              "99%"
+            ],
+            [
+              99.9,
+              "99.9%"
+            ],
+            [
+              99.99,
+              "99.99%"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "n": 5,
+        "a": 99.9
+      },
+      "formats": {
+        "a": "g",
+        "all": "g"
+      },
+      "rows": [
+        {
+          "key": "all",
+          "label": "Availability of the whole request (%)",
+          "expr": "Math.pow(a / 100, n) * 100",
+          "show": "{a}% multiplied {n} times",
+          "format": "g",
+          "tone": "accent"
+        },
+        {
+          "label": "Downtime a year",
+          "expr": "(1 - all / 100) * 365 * 86400",
+          "show": "100% − {all}%, over a year",
+          "format": "duration"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "Google SRE book: Service level objectives",
+      "url": "https://sre.google/sre-book/service-level-objectives/",
+      "note": "SLIs, SLOs and SLAs.",
+      "type": "engineering"
+    },
+    {
+      "label": "Google SRE workbook: Example error budget policy",
+      "url": "https://sre.google/workbook/error-budget-policy/",
+      "note": "What a team agrees to do when the budget runs out.",
+      "type": "engineering"
+    },
+    {
+      "label": "Google SRE workbook: Alerting on SLOs",
+      "url": "https://sre.google/workbook/alerting-on-slos/",
+      "note": "Burn rates and multi-window alerts.",
+      "type": "engineering"
+    }
+  ]
+}

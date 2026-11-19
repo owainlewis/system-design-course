@@ -1,0 +1,459 @@
+{
+  "slug": "agent-loops",
+  "course": "System Design, Visually",
+  "part": "AI systems",
+  "title": "Agent loops",
+  "summary": "How an agent works: a loop where the model picks a tool, your code runs it, and the result goes back, until the task is done or a limit is hit.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "A user asks \"where is my order 1234?\". Answering takes two lookups: the order, to get its tracking number, then the courier, to get the delivery date. The steps depend on what each lookup returns."
+        },
+        {
+          "p": "You could write that flow by hand. But users ask many different things, and each needs different steps. We want the model to decide the steps while our code stays in control of what actually runs."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "The app gives the model the conversation and a list of **tools**: functions it may ask for, each with a name, a description and the parameters it takes. Then it runs a loop."
+        },
+        {
+          "list": [
+            "**Call the model** with the conversation so far.",
+            "**If it asks for a tool**, the app checks the request, runs the function and adds the result to the conversation. Go back to step 1.",
+            "**If it gives a final answer**, return it to the user.",
+            "**Stop anyway** after a set number of steps, a time limit or a token budget."
+          ]
+        },
+        {
+          "p": "The model never runs anything itself. It only asks. Your code decides whether a request is allowed, runs it, and can ask a person first."
+        },
+        {
+          "figure": "loop",
+          "caption": "The model asks for two lookups in turn, then answers. A refund needs the user's approval before it runs. A tool that keeps failing hits the step limit."
+        },
+        {
+          "h3": "Each step resends everything"
+        },
+        {
+          "p": "Each model call includes the whole conversation: instructions, tool definitions, and every earlier call and result. So each step costs more than the last, and the total grows with the square of the number of steps."
+        },
+        {
+          "figure": "tokens",
+          "caption": "Input tokens across an agent run. Each step adds tool calls and results, and every later step sends them again."
+        },
+        {
+          "p": "Provider prompt caching helps, because each step repeats the previous prompt as its prefix. Keeping tool results short helps too."
+        },
+        {
+          "h3": "Parallel tool calls"
+        },
+        {
+          "p": "Each step waits for a model call, often a second or more. When lookups don't depend on each other, the model can ask for several in one step and the app runs them at the same time."
+        },
+        {
+          "figure": "parallel",
+          "caption": "Two independent lookups. One per step takes three model calls. Both in one step take two."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Start without an agent.** Anthropic's [Building effective agents](https://www.anthropic.com/research/building-effective-agents) separates fixed workflows from agents that choose their own steps, and advises the simplest design that works.",
+            "**The pattern has a paper.** [ReAct](https://arxiv.org/abs/2210.03629) showed models alternating between reasoning and actions such as searches, using each result to choose the next step.",
+            "**Tool use is in the APIs.** Model APIs take tool definitions as JSON Schema and return structured tool calls. See Anthropic's [tool use overview](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview).",
+            "**Tools can be shared.** The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard for exposing tools and data to models, so one tool server works with many apps.",
+            "**Guard the side effects.** Treat tool requests as untrusted input. Check permissions, ask a person before anything that can't be undone, and log every call."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "An agent is a loop: the model asks for a tool, the app runs it and returns the result, until there is an answer.",
+            "The model only asks. Your code checks, runs and can require approval.",
+            "Always cap steps, time and tokens, because each step resends the whole conversation.",
+            "Independent tool calls in one step save model round trips."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "loop": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "user",
+          "label": "User",
+          "short": "User",
+          "icon": "user"
+        },
+        {
+          "id": "app",
+          "label": "Agent loop",
+          "short": "Loop",
+          "icon": "server"
+        },
+        {
+          "id": "llm",
+          "label": "Model",
+          "short": "Model",
+          "icon": "bot"
+        },
+        {
+          "id": "tools",
+          "label": "Tools",
+          "short": "Tools",
+          "icon": "app"
+        }
+      ],
+      "scenarios": {
+        "tools": {
+          "label": "Two lookups",
+          "note": "two tool calls, then an answer",
+          "steps": [
+            {
+              "from": "user",
+              "to": "app",
+              "label": "Where is order 1234?"
+            },
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Conversation + tools"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Call get_order(1234)",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "tools",
+              "label": "get_order(1234)"
+            },
+            {
+              "from": "tools",
+              "to": "app",
+              "label": "Shipped, tracking ZX9",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Conversation + result"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Call track(ZX9)",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "tools",
+              "label": "track(ZX9)"
+            },
+            {
+              "from": "tools",
+              "to": "app",
+              "label": "Arrives Friday",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Conversation + result"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Answer: arrives Friday",
+              "kind": "answer"
+            },
+            {
+              "from": "app",
+              "to": "user",
+              "label": "It arrives on Friday",
+              "kind": "answer"
+            }
+          ]
+        },
+        "approve": {
+          "label": "Needs approval",
+          "note": "the refund runs only after the user says yes",
+          "steps": [
+            {
+              "from": "user",
+              "to": "app",
+              "label": "Refund order 1234"
+            },
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Conversation + tools"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Call refund(1234, £20)",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "app",
+              "label": "Refunds need approval"
+            },
+            {
+              "from": "app",
+              "to": "user",
+              "label": "Refund £20? Approve or cancel"
+            },
+            {
+              "from": "user",
+              "to": "app",
+              "label": "Approve"
+            },
+            {
+              "from": "app",
+              "to": "tools",
+              "label": "refund(1234, £20)"
+            },
+            {
+              "from": "tools",
+              "to": "app",
+              "label": "Done",
+              "kind": "refer"
+            }
+          ]
+        },
+        "limit": {
+          "label": "Step limit",
+          "note": "stopped after 10 steps instead of looping forever",
+          "steps": [
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Conversation + tools"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Call search(\"ZX9\")",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "tools",
+              "label": "search(\"ZX9\")"
+            },
+            {
+              "from": "tools",
+              "to": "app",
+              "label": "Error: timeout",
+              "kind": "fail"
+            },
+            {
+              "from": "app",
+              "to": "app",
+              "label": "Steps 2 to 9: same error"
+            },
+            {
+              "from": "app",
+              "to": "app",
+              "label": "Step 10 of 10: stop",
+              "kind": "fail"
+            },
+            {
+              "from": "app",
+              "to": "user",
+              "label": "Couldn't finish: tracking is down",
+              "kind": "fail"
+            }
+          ]
+        }
+      }
+    },
+    "tokens": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "n",
+          "label": "Steps",
+          "min": 1,
+          "max": 30
+        },
+        {
+          "type": "range",
+          "key": "c",
+          "label": "Starting prompt (tokens)",
+          "min": 500,
+          "max": 20000,
+          "step": 500
+        },
+        {
+          "type": "range",
+          "key": "t",
+          "label": "Tokens added per step",
+          "min": 100,
+          "max": 5000,
+          "step": 100
+        }
+      ],
+      "ctrl": {
+        "n": 10,
+        "c": 3000,
+        "t": 800
+      },
+      "rows": [
+        {
+          "label": "Prompt at the last step (tokens)",
+          "expr": "c + t * (n - 1)",
+          "show": "{c} + {t} × ({n} − 1)",
+          "format": "d0"
+        },
+        {
+          "label": "Input tokens across the run",
+          "expr": "n * c + t * n * (n - 1) / 2",
+          "show": "{n} steps, each resending everything before it",
+          "format": "d0",
+          "tone": "accent"
+        }
+      ]
+    },
+    "parallel": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [
+        [
+          "work",
+          "model call"
+        ],
+        [
+          "net",
+          "tool call"
+        ]
+      ],
+      "scenarios": {
+        "serial": {
+          "label": "One per step",
+          "note": "three model calls",
+          "rows": [
+            {
+              "label": "Model",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 1200,
+                  "tone": "work"
+                },
+                {
+                  "s": 1600,
+                  "d": 1200,
+                  "tone": "work"
+                },
+                {
+                  "s": 3200,
+                  "d": 1200,
+                  "tone": "work"
+                }
+              ]
+            },
+            {
+              "label": "get_order",
+              "s": 1200,
+              "d": 400,
+              "tone": "net"
+            },
+            {
+              "label": "get_customer",
+              "s": 2800,
+              "d": 400,
+              "tone": "net"
+            }
+          ]
+        },
+        "parallel": {
+          "label": "Both in one step",
+          "note": "two model calls",
+          "rows": [
+            {
+              "label": "Model",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 1200,
+                  "tone": "work"
+                },
+                {
+                  "s": 1600,
+                  "d": 1200,
+                  "tone": "work"
+                }
+              ]
+            },
+            {
+              "label": "get_order",
+              "s": 1200,
+              "d": 400,
+              "tone": "net"
+            },
+            {
+              "label": "get_customer",
+              "s": 1200,
+              "d": 400,
+              "tone": "net"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "Anthropic: Building effective agents",
+      "url": "https://www.anthropic.com/research/building-effective-agents",
+      "note": "Workflows and agents, and when to use each.",
+      "type": "engineering"
+    },
+    {
+      "label": "Yao et al.: ReAct (2022)",
+      "url": "https://arxiv.org/abs/2210.03629",
+      "note": "Interleaving reasoning and actions.",
+      "type": "paper"
+    },
+    {
+      "label": "Anthropic: tool use overview",
+      "url": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview",
+      "note": "Defining tools and handling tool calls.",
+      "type": "docs"
+    },
+    {
+      "label": "Model Context Protocol",
+      "url": "https://modelcontextprotocol.io/",
+      "note": "An open standard for connecting tools to models.",
+      "type": "official"
+    }
+  ]
+}

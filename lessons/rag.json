@@ -1,0 +1,330 @@
+{
+  "slug": "rag",
+  "course": "System Design, Visually",
+  "part": "AI systems",
+  "title": "Retrieval-augmented generation",
+  "summary": "How an app finds the right passages from its own documents and gives them to a language model, so answers come from your data instead of the model's memory.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "A language model knows what was in its training data, up to a cutoff date. It doesn't know your refund policy, your internal wiki, or yesterday's price change. Asked anyway, it may write a fluent answer that is wrong."
+        },
+        {
+          "p": "Retraining the model on your documents is slow and expensive, and has to happen again whenever they change. Pasting every document into every prompt is too long and too costly."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "**Retrieval-augmented generation** (RAG) looks up the passages that matter for each question and puts them in the prompt. The model answers from those passages."
+        },
+        {
+          "h3": "Indexing, ahead of time"
+        },
+        {
+          "list": [
+            "**Split** each document into **chunks** of a few hundred tokens, often with a little overlap so a sentence isn't cut from its context.",
+            "**Embed** each chunk into a vector, as in the vector search lesson.",
+            "**Store** the vectors with the chunk text and its source, such as the document title and link."
+          ]
+        },
+        {
+          "h3": "Answering, per question"
+        },
+        {
+          "list": [
+            "**Embed the question** with the same model.",
+            "**Retrieve** the nearest chunks, often the top 5 to 20.",
+            "**Generate**: send the model the question, the chunks and instructions to answer only from them and cite the sources."
+          ]
+        },
+        {
+          "figure": "flow",
+          "caption": "Indexing runs ahead of time. At question time the app retrieves the nearest chunks and sends them with the question. Without retrieval the model can only guess."
+        },
+        {
+          "h3": "What goes wrong"
+        },
+        {
+          "p": "Most bad answers come from retrieval, not generation. If the right chunk isn't retrieved, the model can't use it. So test retrieval on its own: for a set of questions, check whether the chunk with the answer comes back."
+        },
+        {
+          "list": [
+            "**Chunks lose context.** A chunk saying \"the limit is 30 days\" doesn't say what the limit is for. Add the document title or a short summary to each chunk before embedding.",
+            "**Vectors miss exact terms.** Product codes and names are better matched by keyword search. Run both and merge the results.",
+            "**The first results aren't the best.** A **reranker**, a model that scores each question and chunk pair, can reorder a larger set and keep the best few.",
+            "**More context isn't always better.** Models can miss facts placed in the middle of a long prompt. Send fewer, better chunks."
+          ]
+        },
+        {
+          "h3": "Prompt size"
+        },
+        {
+          "figure": "budget",
+          "caption": "Tokens sent with each question, and the input cost of a million questions at a given price."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**The name comes from a 2020 paper.** Lewis and others introduced RAG in [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401).",
+            "**Context helps retrieval.** Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) adds a short, chunk-specific context before embedding, and combines it with keyword search and reranking.",
+            "**Position in the prompt matters.** [Lost in the Middle](https://arxiv.org/abs/2307.03172) found that models used information at the start or end of a long input better than in the middle.",
+            "**Show the sources.** Return the documents each answer used, so users can check it, and so you can see which chunks led to a wrong answer."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "RAG retrieves the passages relevant to a question and gives them to the model with it.",
+            "Indexing splits documents into chunks, embeds them and stores them with their source.",
+            "Most failures are retrieval failures, so measure retrieval on its own.",
+            "Add context to chunks, combine keyword and vector search, rerank, and send fewer, better chunks."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "flow": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "user",
+          "label": "User",
+          "short": "User",
+          "icon": "user"
+        },
+        {
+          "id": "app",
+          "label": "App",
+          "short": "App",
+          "icon": "server"
+        },
+        {
+          "id": "emb",
+          "label": "Embedding model",
+          "short": "Embed",
+          "icon": "bot"
+        },
+        {
+          "id": "vdb",
+          "label": "Vector index",
+          "short": "Index",
+          "icon": "store"
+        },
+        {
+          "id": "llm",
+          "label": "LLM",
+          "short": "LLM",
+          "icon": "bot"
+        }
+      ],
+      "scenarios": {
+        "index": {
+          "label": "Index",
+          "note": "runs once, and again when documents change",
+          "steps": [
+            {
+              "from": "app",
+              "to": "app",
+              "label": "Split documents into chunks"
+            },
+            {
+              "from": "app",
+              "to": "emb",
+              "label": "Embed 1,200 chunks"
+            },
+            {
+              "from": "emb",
+              "to": "app",
+              "label": "1,200 vectors",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "vdb",
+              "label": "Store vectors, text, source",
+              "set": {
+                "vdb": "1,200 chunks"
+              }
+            }
+          ]
+        },
+        "answer": {
+          "label": "Answer",
+          "note": "the answer comes from your documents",
+          "state": {
+            "vdb": "1,200 chunks"
+          },
+          "steps": [
+            {
+              "from": "user",
+              "to": "app",
+              "label": "Can I get my money back?"
+            },
+            {
+              "from": "app",
+              "to": "emb",
+              "label": "Embed the question"
+            },
+            {
+              "from": "emb",
+              "to": "app",
+              "label": "Vector",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "vdb",
+              "label": "Nearest 5 chunks"
+            },
+            {
+              "from": "vdb",
+              "to": "app",
+              "label": "5 chunks, from Refund policy",
+              "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Question + 5 chunks"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Yes, within 30 days [Refund policy]",
+              "kind": "answer"
+            },
+            {
+              "from": "app",
+              "to": "user",
+              "label": "Answer with source",
+              "kind": "answer"
+            }
+          ]
+        },
+        "none": {
+          "label": "No retrieval",
+          "note": "the model can only guess",
+          "steps": [
+            {
+              "from": "user",
+              "to": "app",
+              "label": "Can I get my money back?"
+            },
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Question only"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Usually within 14 days",
+              "kind": "fail"
+            },
+            {
+              "from": "app",
+              "to": "user",
+              "label": "A guess, stated as fact",
+              "kind": "fail"
+            }
+          ]
+        }
+      }
+    },
+    "budget": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "k",
+          "label": "Chunks retrieved",
+          "min": 1,
+          "max": 40
+        },
+        {
+          "type": "range",
+          "key": "size",
+          "label": "Tokens per chunk",
+          "min": 100,
+          "max": 2000,
+          "step": 100
+        },
+        {
+          "type": "range",
+          "key": "price",
+          "label": "Input price per million tokens ($)",
+          "min": 1,
+          "max": 15
+        }
+      ],
+      "ctrl": {
+        "k": 8,
+        "size": 400,
+        "price": 3
+      },
+      "rows": [
+        {
+          "key": "ctx",
+          "label": "Retrieved text (tokens)",
+          "expr": "k * size",
+          "show": "{k} chunks × {size} tokens",
+          "format": "d0"
+        },
+        {
+          "key": "total",
+          "label": "Prompt per question (tokens)",
+          "expr": "ctx + 800",
+          "show": "{ctx} + 800 for instructions and the question",
+          "format": "d0"
+        },
+        {
+          "label": "Input cost of a million questions ($)",
+          "expr": "total * price",
+          "show": "{total} tokens × {price} per million",
+          "format": "d0",
+          "tone": "accent"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "Lewis et al.: Retrieval-augmented generation for knowledge-intensive NLP tasks (2020)",
+      "url": "https://arxiv.org/abs/2005.11401",
+      "note": "The paper that named RAG.",
+      "type": "paper"
+    },
+    {
+      "label": "Anthropic: Contextual retrieval",
+      "url": "https://www.anthropic.com/news/contextual-retrieval",
+      "note": "Adding context to chunks, with keyword search and reranking.",
+      "type": "engineering"
+    },
+    {
+      "label": "Liu et al.: Lost in the middle (2023)",
+      "url": "https://arxiv.org/abs/2307.03172",
+      "note": "How models use information at different positions in a long input.",
+      "type": "paper"
+    }
+  ]
+}

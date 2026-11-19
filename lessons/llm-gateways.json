@@ -1,0 +1,354 @@
+{
+  "slug": "llm-gateways",
+  "course": "System Design, Visually",
+  "part": "AI systems",
+  "title": "LLM gateways",
+  "summary": "One service in front of every model provider, for keys, limits, costs, fallbacks and logs, and why it has to stream.",
+  "minutes": 9,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Several teams call language models from their services. Each holds its own API keys, writes its own retry code and picks its own models. Nobody can say what the company spends, or which team used up the provider's rate limit."
+        },
+        {
+          "p": "When a provider has an outage or rate-limits you, every service fails in its own way. Moving to a new model means changing code in every service."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "An **LLM gateway** is a reverse proxy for model calls. Services send requests to the gateway, and it calls the provider. It is the API gateway idea from earlier in the course, applied to models."
+        },
+        {
+          "list": [
+            "**Keys in one place.** Services authenticate to the gateway. Only the gateway holds provider keys.",
+            "**One API.** Services use one request format, and the gateway translates for each provider, so changing model is a configuration change.",
+            "**Limits and budgets.** The gateway counts tokens and spend per team or key, and rejects requests over a limit, as in the rate limiting lesson.",
+            "**Fallbacks.** If a provider returns an error or is too slow, the gateway retries with another model or provider.",
+            "**Caching.** An identical request can be answered from a cache. Many providers also cache a long, repeated prompt prefix on their side, which cuts cost and latency.",
+            "**Logs.** Every prompt, response, token count, latency and cost is recorded in one place, for debugging and evals."
+          ]
+        },
+        {
+          "figure": "gateway",
+          "caption": "Provider A rate-limits the request, so the gateway sends it to provider B. A team over its budget is stopped at the gateway."
+        },
+        {
+          "h3": "Streaming"
+        },
+        {
+          "p": "A model writes its answer one token at a time, and a long answer can take many seconds. Providers stream tokens as they are made, usually as server-sent events. Users see text start almost at once."
+        },
+        {
+          "p": "A gateway that waits for the whole response before passing it on throws that away. It must pass each event through as it arrives, and count tokens as they go by."
+        },
+        {
+          "figure": "stream",
+          "caption": "A 4-second answer. Buffered, the user sees nothing until the end. Streamed, the first words appear after half a second."
+        },
+        {
+          "h3": "Cost"
+        },
+        {
+          "figure": "cost",
+          "caption": "Daily and monthly spend from traffic, prompt size and prices. Output tokens usually cost several times as much as input tokens."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Open-source gateways exist.** [LiteLLM's proxy](https://docs.litellm.ai/docs/simple_proxy) offers one OpenAI-style API over many providers, with keys, budgets, fallbacks and logging.",
+            "**So do hosted ones.** [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) adds caching, rate limiting, retries and analytics in front of model providers.",
+            "**Streams use server-sent events.** The [server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html) format sends a stream of events over one HTTP response. Check that every proxy and load balancer on the path doesn't buffer it.",
+            "**Providers cache prompt prefixes.** Anthropic's [prompt caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) reuses the processing of a repeated prefix, such as long instructions, across requests. Put the parts that don't change first.",
+            "**Keep it thin.** The gateway is on the path of every model call. Make it stateless, run several copies, and keep slow work like log shipping off the request path."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "An LLM gateway sits between your services and model providers.",
+            "It holds the keys, offers one API, enforces budgets, falls back between providers and logs every call.",
+            "It must stream responses through as they arrive.",
+            "Track spend per team, and remember output tokens usually cost more than input."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "gateway": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "app",
+          "label": "App",
+          "short": "App",
+          "icon": "app"
+        },
+        {
+          "id": "gw",
+          "label": "LLM gateway",
+          "short": "Gateway",
+          "icon": "balancer"
+        },
+        {
+          "id": "a",
+          "label": "Provider A",
+          "short": "A",
+          "icon": "bot"
+        },
+        {
+          "id": "b",
+          "label": "Provider B",
+          "short": "B",
+          "icon": "bot"
+        }
+      ],
+      "scenarios": {
+        "fallback": {
+          "label": "Fallback",
+          "note": "provider A is rate-limited, so B answers",
+          "steps": [
+            {
+              "from": "app",
+              "to": "gw",
+              "label": "Chat request, team: search"
+            },
+            {
+              "from": "gw",
+              "to": "gw",
+              "label": "Check budget: OK"
+            },
+            {
+              "from": "gw",
+              "to": "a",
+              "label": "Request"
+            },
+            {
+              "from": "a",
+              "to": "gw",
+              "label": "429 rate limited",
+              "kind": "fail"
+            },
+            {
+              "from": "gw",
+              "to": "b",
+              "label": "Same request"
+            },
+            {
+              "from": "b",
+              "to": "gw",
+              "label": "Streamed answer",
+              "kind": "answer"
+            },
+            {
+              "from": "gw",
+              "to": "app",
+              "label": "Streamed answer",
+              "kind": "answer"
+            },
+            {
+              "from": "gw",
+              "to": "gw",
+              "label": "Log tokens and cost"
+            }
+          ]
+        },
+        "budget": {
+          "label": "Over budget",
+          "note": "stopped before any provider is called",
+          "state": {
+            "gw": "search: budget used"
+          },
+          "steps": [
+            {
+              "from": "app",
+              "to": "gw",
+              "label": "Chat request, team: search"
+            },
+            {
+              "from": "gw",
+              "to": "gw",
+              "label": "Check budget: none left"
+            },
+            {
+              "from": "gw",
+              "to": "app",
+              "label": "429 budget exceeded",
+              "kind": "fail"
+            }
+          ]
+        }
+      }
+    },
+    "stream": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [
+        [
+          "work",
+          "model writing"
+        ],
+        [
+          "net",
+          "user sees text"
+        ]
+      ],
+      "scenarios": {
+        "buffer": {
+          "label": "Buffered",
+          "note": "nothing on screen for 4 s",
+          "rows": [
+            {
+              "label": "Model writes",
+              "s": 0,
+              "d": 4000,
+              "tone": "work"
+            },
+            {
+              "label": "User sees text",
+              "s": 4000,
+              "d": 80,
+              "tone": "net"
+            }
+          ]
+        },
+        "stream": {
+          "label": "Streamed",
+          "note": "first words after 0.5 s",
+          "rows": [
+            {
+              "label": "Model writes",
+              "s": 0,
+              "d": 4000,
+              "tone": "work"
+            },
+            {
+              "label": "User sees text",
+              "s": 500,
+              "d": 3580,
+              "tone": "net",
+              "text": "streaming"
+            }
+          ]
+        }
+      }
+    },
+    "cost": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "req",
+          "label": "Requests a day (thousands)",
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "type": "range",
+          "key": "tin",
+          "label": "Input tokens per request",
+          "min": 100,
+          "max": 20000,
+          "step": 100
+        },
+        {
+          "type": "range",
+          "key": "tout",
+          "label": "Output tokens per request",
+          "min": 50,
+          "max": 4000,
+          "step": 50
+        },
+        {
+          "type": "range",
+          "key": "pin",
+          "label": "Input price per million tokens ($)",
+          "min": 1,
+          "max": 15
+        },
+        {
+          "type": "range",
+          "key": "pout",
+          "label": "Output price per million tokens ($)",
+          "min": 1,
+          "max": 75
+        }
+      ],
+      "ctrl": {
+        "req": 100,
+        "tin": 2000,
+        "tout": 400,
+        "pin": 3,
+        "pout": 15
+      },
+      "rows": [
+        {
+          "key": "cin",
+          "label": "Input cost a day ($)",
+          "expr": "req * 1000 * tin / 1e6 * pin",
+          "show": "{req}k × {tin} tokens × ${pin} per million",
+          "format": "d0"
+        },
+        {
+          "key": "cout",
+          "label": "Output cost a day ($)",
+          "expr": "req * 1000 * tout / 1e6 * pout",
+          "show": "{req}k × {tout} tokens × ${pout} per million",
+          "format": "d0"
+        },
+        {
+          "label": "Cost a month ($)",
+          "expr": "(cin + cout) * 30",
+          "show": "({cin} + {cout}) × 30 days",
+          "format": "d0",
+          "tone": "accent"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "LiteLLM: proxy server",
+      "url": "https://docs.litellm.ai/docs/simple_proxy",
+      "note": "An open-source LLM gateway.",
+      "type": "docs"
+    },
+    {
+      "label": "Cloudflare AI Gateway",
+      "url": "https://developers.cloudflare.com/ai-gateway/",
+      "note": "A hosted gateway with caching, rate limits and analytics.",
+      "type": "docs"
+    },
+    {
+      "label": "WHATWG HTML: server-sent events",
+      "url": "https://html.spec.whatwg.org/multipage/server-sent-events.html",
+      "note": "The event stream format model APIs use for streaming.",
+      "type": "standard"
+    },
+    {
+      "label": "Anthropic: prompt caching",
+      "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching",
+      "note": "Reusing a repeated prompt prefix across requests.",
+      "type": "docs"
+    }
+  ]
+}

@@ -14,7 +14,7 @@ const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x)); const lerp = (a,
 const fmt = (n, d = 0) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 ${read('src/sim.js')}
 ${kinds.map(k => read('src/kinds/' + k)).join('\n')}
-globalThis.api = { KINDS, calcRun, tlEnd, tlSpans, caSimulate, shSimulate, qSimulate, tpSimulate };
+globalThis.api = { KINDS, calcRun, tlEnd, tlSpans, caSimulate, shSimulate, qSimulate, tpSimulate, veSimulate };
 globalThis.lookup = name => eval(name);`, ctx);
 export const api = ctx.api, lookup = ctx.lookup;
 const course = JSON.parse(read('course.json'));
@@ -200,4 +200,31 @@ test('SLOs: 99.9% allows under 9 hours a year and 99.999% about 5 minutes; 14.4 
   const items = lesson('slos').figures.nines.items, v = l => items.find(i => i.label === l).value;
   assert.ok(v('99.9%') < 9 * 3600 && v('99.9%') > 8 * 3600); assert.equal(Math.round(v('99.999%') / 60), 5);
   assert.ok(Math.abs(14.4 / (30 * 24) - 0.02) < 1e-9);
+});
+
+/* ---------- AI systems ---------- */
+test('vector search: IVF with 1 cluster misses a neighbour in Billing; 2 clusters find all 5; exact compares all 88', () => {
+  const sc = lesson('vector-search').figures.search.scenarios;
+  const ex = api.veSimulate(sc.exact.scene), one = api.veSimulate(sc.ivf1.scene), two = api.veSimulate(sc.ivf2.scene);
+  assert.equal(ex.scan.length, 88); assert.equal(ex.recall, 5);
+  assert.equal(one.recall, 4); assert.ok(one.scan.length < ex.scan.length / 3);
+  const missed = one.truth.filter(p => !one.found.includes(p)); assert.equal(sc.ivf1.scene.clusters[missed[0].c].label, 'Billing');
+  assert.equal(two.recall, 5);
+});
+test('evals: 50 cases at 80% gives about ±11 points; 184 vs 166 of 200 is 9 points', () => {
+  const f = lesson('llm-evals').figures.margin, m = api.calcRun(f, f.ctrl).env.m;
+  assert.equal(Math.round(m), 11); assert.equal((184 - 166) / 200 * 100, 9);
+});
+test('agent loops: parallel tool calls save one model call', () => {
+  const sc = lesson('agent-loops').figures.parallel.scenarios;
+  assert.equal(end(sc.serial.rows) - end(sc.parallel.rows), 1600);
+});
+
+/* ---------- case studies ---------- */
+test('URL shortener: about 40 writes and 4,000 reads a second, 6 billion links, 7 characters under 0.2% used, a small cache answers most redirects', () => {
+  const f = lesson('url-shortener').figures, e = api.calcRun(f.estimates, f.estimates.ctrl);
+  assert.equal(Math.round(e.env.w / 10) * 10, 40); assert.equal(Math.round(e.out[1].v / 1000) * 1000, 4000); assert.equal(e.env.rows, 6e9);
+  assert.equal(e.out[3].v, 3e12, '3 TB');
+  const k = api.calcRun(f.keyspace, f.keyspace.ctrl).out[1].v; assert.ok(k < 0.2 && 100 / k > 500);
+  assert.ok(ca(f.cache.scene).hit > 0.8, `hit ratio ${ca(f.cache.scene).hit}`);
 });

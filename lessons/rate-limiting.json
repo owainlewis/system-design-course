@@ -1,0 +1,641 @@
+{
+  "slug": "rate-limiting",
+  "course": "System Design, Visually",
+  "part": "Reliability",
+  "title": "Rate limiting",
+  "summary": "How an API stops one client from using up a server that everyone shares, and the five algorithms that do it.",
+  "minutes": 12,
+  "clients": {
+    "u1": {
+      "kind": "user",
+      "label": "User"
+    },
+    "u2": {
+      "kind": "user",
+      "label": "User"
+    },
+    "u3": {
+      "kind": "user",
+      "label": "User"
+    },
+    "bot": {
+      "kind": "bot",
+      "label": "Script"
+    },
+    "app": {
+      "kind": "app",
+      "label": "API key"
+    }
+  },
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Your API server handles about **10 requests a second**. Three people use it at 2 requests a second each, so it has room to spare."
+        },
+        {
+          "p": "Then someone runs a script that sends **30 requests a second**. The server can only work through 10, so the rest wait in a queue. Everyone's requests now sit behind the script's. After 2 seconds of waiting they time out, and the people who did nothing wrong get errors too."
+        },
+        {
+          "figure": "no-limit",
+          "caption": "No limit. The script fills the server's queue and requests from every client time out."
+        },
+        {
+          "p": "The server treats every request the same, so it can't protect the three users from the script. A rate limiter fixes this. It counts the requests from each client and rejects the extra ones before they reach the server."
+        }
+      ]
+    },
+    {
+      "id": "what-it-does",
+      "heading": "What a rate limiter does",
+      "blocks": [
+        {
+          "p": "A rate limiter sits in front of the API, usually in the API gateway or as middleware in the server. For every request it answers three questions."
+        },
+        {
+          "list": [
+            "**Who is this?** The key the limit is counted against: an API key, a user ID, or an IP address when there is no login.",
+            "**How much are they allowed?** The rule, such as 5 requests per second per API key.",
+            "**What happens when they go over?** Usually the request is rejected straight away. Some limiters make it wait instead."
+          ]
+        },
+        {
+          "p": "A rejected request gets status `429 Too Many Requests`, defined in [RFC 6585](https://www.rfc-editor.org/rfc/rfc6585#section-4). The response may include a `Retry-After` header saying how many seconds to wait. The RFC does not say how to identify the client or how to count requests. The rest of this lesson covers that."
+        },
+        {
+          "code": "HTTP/1.1 429 Too Many Requests\nRetry-After: 2\nRateLimit-Policy: \"default\";q=5;w=1\nRateLimit: \"default\";r=0;t=2",
+          "caption": "A rejected request. The two RateLimit headers come from an IETF draft that is not yet a standard; they tell the client its quota (q requests per w seconds), what remains (r) and when it resets (t)."
+        }
+      ]
+    },
+    {
+      "id": "algorithms",
+      "heading": "How it works: five algorithms",
+      "blocks": [
+        {
+          "p": "Each algorithm below stores a little data for each key and checks it on every request. They differ in three ways: what they store, how exact they are, and what they do with a burst. A burst is many requests arriving at once."
+        },
+        {
+          "h3": "Fixed window"
+        },
+        {
+          "p": "Keep one counter per key. Each request adds one. Once the counter passes the limit, reject until the window ends. When the second is up, the counter resets to zero."
+        },
+        {
+          "figure": "fixed-window",
+          "caption": "Fixed window, 5 per second. Bursts beyond 5 in the same second get a 429."
+        },
+        {
+          "p": "It stores one number per key and needs one increment per request, so it is the cheapest option. It has one weakness: the moment the window resets."
+        },
+        {
+          "h3": "The edge of the window"
+        },
+        {
+          "p": "The counter only knows which second a request falls in. A client that sends 5 requests just before the reset and 5 just after gets **all 10 through in under half a second**. At the boundary, a fixed window lets through up to twice the limit."
+        },
+        {
+          "figure": "window-edge",
+          "caption": "Two bursts of 5 either side of a reset. All 10 pass. The peak in any one-second span reaches 10 against a limit of 5."
+        },
+        {
+          "h3": "Sliding log"
+        },
+        {
+          "p": "Store the time of every accepted request. On each new request, drop entries older than one second and count what is left. Now **any one-second span holds at most 5**, wherever it starts."
+        },
+        {
+          "figure": "sliding-log",
+          "caption": "The same traffic as before. The log sees the first burst and turns the second one away."
+        },
+        {
+          "p": "The cost is memory: one timestamp for every accepted request, for every key. At a limit of 1,000 a minute and a million keys, that is up to a billion timestamps."
+        },
+        {
+          "h3": "Sliding window counter"
+        },
+        {
+          "p": "Keep two counters per key: this second and the last one. To estimate the count for the past second, take part of last second's total and add this second's count. The part depends on how far into this second you are. **30% into this second, take 70% of last second's total.**"
+        },
+        {
+          "figure": "sliding-counter",
+          "caption": "Two counters instead of a log. It rejects most of the second burst, close to the log, while storing two numbers per key."
+        },
+        {
+          "p": "It is an estimate, because it assumes last second's requests were spread evenly. In practice the error is small. Cloudflare measured this method on 400 million requests and found 0.003% were wrongly allowed or limited."
+        },
+        {
+          "h3": "Token bucket"
+        },
+        {
+          "p": "Each key has a bucket that holds up to **8 tokens** and refills at **4 tokens a second**. A request spends one token. If the bucket is empty, the request is rejected."
+        },
+        {
+          "figure": "token-bucket",
+          "caption": "Token bucket, 8 tokens, refilling at 4 a second. The first 8 of a burst of 12 pass; after that the client gets only what refills."
+        },
+        {
+          "p": "The two numbers do different jobs. The capacity sets the largest burst. The refill rate sets the average over time. A client that has been quiet can send a burst. A client that sends all the time gets the refill rate. It stores two numbers per key: the token count and when it was last updated."
+        },
+        {
+          "h3": "Leaky bucket"
+        },
+        {
+          "p": "Instead of rejecting a burst, put requests in a queue of **6** and release them at a steady **4 a second**. Requests wait instead of failing. Only when the queue is full is the overflow rejected."
+        },
+        {
+          "figure": "leaky-bucket",
+          "caption": "Leaky bucket, queue of 6, 4 a second out. The server sees an even stream; requests that arrive to a full queue are rejected."
+        },
+        {
+          "p": "Use it when the thing behind the limiter needs a smooth rate, such as a database or a third-party API with its own strict limit. The price is latency: a request at the back of the queue waits up to 1.5 seconds here."
+        },
+        {
+          "h3": "Side by side"
+        },
+        {
+          "table": {
+            "head": [
+              "Algorithm",
+              "Stores per key",
+              "Bursts",
+              "Accuracy",
+              "Excess requests"
+            ],
+            "rows": [
+              [
+                "Fixed window",
+                "1 counter",
+                "Up to 2x at a reset",
+                "Approximate at edges",
+                "Rejected"
+              ],
+              [
+                "Sliding log",
+                "Every timestamp",
+                "Never above the limit",
+                "Exact",
+                "Rejected"
+              ],
+              [
+                "Sliding window counter",
+                "2 counters",
+                "Close to the limit",
+                "Close estimate",
+                "Rejected"
+              ],
+              [
+                "Token bucket",
+                "Tokens and a time",
+                "Up to the capacity",
+                "Exact for its rule",
+                "Rejected"
+              ],
+              [
+                "Leaky bucket",
+                "A queue",
+                "Smoothed out",
+                "Exact for its rule",
+                "Delayed, then rejected"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "distributed",
+      "heading": "Many servers, one limit",
+      "blocks": [
+        {
+          "p": "Real APIs run on more than one server behind a load balancer. If each server keeps its own count, a key limited to **6 a second** gets 6 on each of three servers: **18 in total**."
+        },
+        {
+          "p": "The fix is to keep the count in one shared store that every server checks, usually Redis. The limit then holds across all the servers. The price is one extra network call per request, and a decision about what to do if the store is down: let requests through, or reject them."
+        },
+        {
+          "figure": "distributed",
+          "caption": "Three API servers. Switch from one counter per server to a shared counter and watch the peak drop from 18 to 6."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Stripe** uses the token bucket algorithm and implements its limiters on Redis. As well as a rate limit per user, it caps how many requests one user can have in progress at once. When its servers are overloaded, it rejects less important traffic first.",
+            "**Amazon API Gateway** throttles with a token bucket. You set a rate, which is the refill rate, and a burst, which is the bucket's capacity. AWS describes these limits as targets applied on a best-effort basis, not exact ceilings.",
+            "**NGINX** limits requests with its `limit_req` module, which uses the leaky bucket method. With `burst=5`, excess requests are delayed until more than 5 are waiting, then rejected. Adding `nodelay` passes the burst through at once. By default it rejects with `503`, so set `limit_req_status 429` for an API.",
+            "**Cloudflare** counts requests with the sliding window counter described above, across its whole network."
+          ]
+        },
+        {
+          "p": "The client has a part to play too. A good client reads `Retry-After`, waits, and then retries with a growing delay between attempts. Retrying at once only adds to the load. That is the subject of the lesson on timeouts and retries."
+        }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        {
+          "p": "Pick an algorithm, set the limit and send bursts. Each burst is 10 requests in a third of a second, on top of a steady 3 a second. Compare how many requests each algorithm lets through at the peak, and what it does with requests it can't accept straight away."
+        },
+        {
+          "figure": "playground",
+          "caption": "The playground. Every algorithm uses the same limit per second."
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "A rate limiter caps what one client can send, so one client cannot use up capacity that everyone shares.",
+            "Reject with `429 Too Many Requests` and say when to retry with `Retry-After`.",
+            "Fixed windows are cheap but allow 2x at a reset. A sliding window counter fixes most of that for one extra number. A token bucket allows bursts up to a set size. A leaky bucket smooths traffic by making it wait.",
+            "With more than one server, keep the count in a shared store or the limit multiplies by the number of servers."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "no-limit": {
+      "scene": {
+        "period": 9,
+        "limiter": {
+          "type": "none"
+        },
+        "server": {
+          "capacity": 10,
+          "timeout": 2
+        },
+        "traffic": [
+          {
+            "client": "u1",
+            "type": "steady",
+            "rate": 2
+          },
+          {
+            "client": "u2",
+            "type": "steady",
+            "rate": 2,
+            "start": 0.85
+          },
+          {
+            "client": "u3",
+            "type": "steady",
+            "rate": 2,
+            "start": 1.1
+          },
+          {
+            "client": "bot",
+            "type": "steady",
+            "rate": 30,
+            "start": 2,
+            "end": 5.5
+          }
+        ]
+      }
+    },
+    "fixed-window": {
+      "scene": {
+        "period": 8,
+        "limiter": {
+          "type": "fixed",
+          "limit": 5,
+          "window": 1
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "steady",
+            "rate": 3
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 2.25,
+            "count": 9,
+            "spread": 0.45
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 5.3,
+            "count": 6,
+            "spread": 0.3
+          }
+        ]
+      }
+    },
+    "window-edge": {
+      "scene": {
+        "period": 7,
+        "limiter": {
+          "type": "fixed",
+          "limit": 5,
+          "window": 1
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 1.72,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 2.03,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 4.72,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 5.03,
+            "count": 5,
+            "spread": 0.24
+          }
+        ]
+      }
+    },
+    "sliding-log": {
+      "scene": {
+        "period": 7,
+        "limiter": {
+          "type": "log",
+          "limit": 5,
+          "window": 1
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 1.72,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 2.03,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 4.72,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 5.03,
+            "count": 5,
+            "spread": 0.24
+          }
+        ]
+      }
+    },
+    "sliding-counter": {
+      "scene": {
+        "period": 7,
+        "limiter": {
+          "type": "counter",
+          "limit": 5,
+          "window": 1
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 1.72,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 2.03,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 4.72,
+            "count": 5,
+            "spread": 0.24
+          },
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 5.03,
+            "count": 5,
+            "spread": 0.24
+          }
+        ]
+      }
+    },
+    "token-bucket": {
+      "scene": {
+        "period": 8,
+        "limiter": {
+          "type": "token",
+          "capacity": 8,
+          "rate": 4
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 1.2,
+            "count": 12,
+            "spread": 0.2
+          },
+          {
+            "client": "app",
+            "type": "steady",
+            "rate": 7,
+            "start": 3.2,
+            "end": 6.6
+          }
+        ]
+      }
+    },
+    "leaky-bucket": {
+      "scene": {
+        "period": 8,
+        "limiter": {
+          "type": "leaky",
+          "queue": 6,
+          "rate": 4
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "burst",
+            "at": 1.2,
+            "count": 12,
+            "spread": 0.2
+          },
+          {
+            "client": "app",
+            "type": "steady",
+            "rate": 7,
+            "start": 3.6,
+            "end": 6.0
+          }
+        ]
+      }
+    },
+    "distributed": {
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "scope",
+          "label": "Counter",
+          "options": [
+            [
+              "node",
+              "One per server"
+            ],
+            [
+              "shared",
+              "Shared (Redis)"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "scope": "node"
+      },
+      "scene": {
+        "period": 7,
+        "nodes": 3,
+        "limiter": {
+          "type": "log",
+          "limit": 6,
+          "window": 1,
+          "scope": "node"
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "steady",
+            "rate": 20,
+            "start": 0.8,
+            "end": 6.2
+          }
+        ]
+      }
+    },
+    "playground": {
+      "playground": true,
+      "controls": [
+        {
+          "type": "algo",
+          "key": "algo",
+          "label": "Algorithm"
+        },
+        {
+          "type": "range",
+          "key": "limit",
+          "label": "Limit per second",
+          "min": 2,
+          "max": 12
+        },
+        {
+          "type": "burst",
+          "label": "Send a burst"
+        }
+      ],
+      "ctrl": {
+        "algo": "token",
+        "limit": 6
+      },
+      "scene": {
+        "period": 10,
+        "limiter": {
+          "type": "token",
+          "capacity": 6,
+          "rate": 6
+        },
+        "traffic": [
+          {
+            "client": "app",
+            "type": "steady",
+            "rate": 3,
+            "start": 0.4,
+            "end": 9.4
+          }
+        ]
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "RFC 6585, section 4: 429 Too Many Requests",
+      "url": "https://www.rfc-editor.org/rfc/rfc6585#section-4",
+      "note": "The status code, and the optional Retry-After header.",
+      "type": "standard"
+    },
+    {
+      "label": "IETF draft: RateLimit header fields for HTTP",
+      "url": "https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-ratelimit-headers",
+      "note": "The proposed RateLimit and RateLimit-Policy headers. A draft, not yet a standard.",
+      "type": "standard"
+    },
+    {
+      "label": "Stripe: Scaling your API with rate limiters",
+      "url": "https://stripe.com/blog/rate-limiters",
+      "note": "The four limiters Stripe runs in production, with token bucket code on Redis.",
+      "type": "engineering"
+    },
+    {
+      "label": "Amazon API Gateway: throttle requests to your REST APIs",
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html",
+      "note": "Rate and burst as a token bucket.",
+      "type": "docs"
+    },
+    {
+      "label": "NGINX: ngx_http_limit_req_module",
+      "url": "https://nginx.org/en/docs/http/ngx_http_limit_req_module.html",
+      "note": "Leaky bucket limiting, burst, nodelay and limit_req_status.",
+      "type": "docs"
+    },
+    {
+      "label": "Cloudflare: Counting things, a lot of different things",
+      "url": "https://blog.cloudflare.com/counting-things-a-lot-of-different-things/",
+      "note": "The sliding window counter at scale, and how accurate it was.",
+      "type": "engineering"
+    }
+  ],
+  "next": [
+    "Timeouts and retries",
+    "Load balancing",
+    "Caching",
+    "Consistent hashing",
+    "Message queues",
+    "DNS"
+  ]
+}

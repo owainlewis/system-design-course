@@ -1,0 +1,10 @@
+{
+  "name": "system-design-visually",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "dev": "node scripts/build.mjs && npx --yes serve dist"
+  }
+}

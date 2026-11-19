@@ -1,0 +1,72 @@
+{
+  "title": "System Design, Visually",
+  "parts": [
+    { "title": "Foundations", "lessons": [
+      ["how-a-request-travels", "How a request travels"],
+      ["latency-numbers", "Latency numbers"],
+      ["dns", "DNS"],
+      ["tcp-and-tls", "TCP and TLS"],
+      ["http", "HTTP, from 1.1 to 3"],
+      ["estimates", "Back-of-the-envelope estimates"]
+    ] },
+    { "title": "Scaling the web tier", "lessons": [
+      ["vertical-and-horizontal", "Vertical and horizontal scaling"],
+      ["load-balancing", "Load balancing"],
+      ["stateless-services", "Stateless services"],
+      ["reverse-proxies", "Reverse proxies"],
+      ["api-gateways", "API gateways"],
+      ["cdns", "CDNs"]
+    ] },
+    { "title": "Caching", "lessons": [
+      ["caching", "Caching"],
+      ["cache-strategies", "Cache-aside, write-through, write-back"],
+      ["cache-eviction", "Eviction and LRU"],
+      ["cache-invalidation", "Cache invalidation"]
+    ] },
+    { "title": "Data", "lessons": [
+      ["sql-and-nosql", "SQL and NoSQL"],
+      ["indexes", "Indexes"],
+      ["transactions", "Transactions and isolation"],
+      ["replication", "Replication"],
+      ["sharding", "Sharding"],
+      ["consistent-hashing", "Consistent hashing"],
+      ["cap-and-pacelc", "CAP and PACELC"],
+      ["consensus", "Consensus and Raft"],
+      ["object-storage", "Object storage"]
+    ] },
+    { "title": "Async and messaging", "lessons": [
+      ["message-queues", "Message queues"],
+      ["pub-sub", "Pub/sub"],
+      ["event-logs", "Event logs and Kafka"],
+      ["idempotency", "Idempotency"],
+      ["delivery-guarantees", "Delivery guarantees"],
+      ["backpressure", "Backpressure"]
+    ] },
+    { "title": "Reliability", "lessons": [
+      ["rate-limiting", "Rate limiting"],
+      ["timeouts-and-retries", "Timeouts and retries"],
+      ["circuit-breakers", "Circuit breakers"],
+      ["load-shedding", "Load shedding"],
+      ["health-checks", "Health checks and failover"],
+      ["observability", "Logs, metrics and traces"],
+      ["slos", "SLOs and error budgets"]
+    ] },
+    { "title": "AI systems", "lessons": [
+      ["llm-gateways", "LLM gateways"],
+      ["vector-search", "Vector search"],
+      ["rag", "Retrieval-augmented generation"],
+      ["agent-loops", "Agent loops"],
+      ["llm-evals", "Evals in production"]
+    ] },
+    { "title": "Case studies", "lessons": [
+      ["url-shortener", "Design a URL shortener"],
+      ["unique-ids", "Design unique ID generation"],
+      ["news-feed", "Design a news feed"],
+      ["chat", "Design a chat app"],
+      ["notifications", "Design a notification system"],
+      ["autocomplete", "Design search autocomplete"],
+      ["video-streaming", "Design video streaming"]
+    ] }
+  ],
+  "ready": ["rate-limiting"]
+}

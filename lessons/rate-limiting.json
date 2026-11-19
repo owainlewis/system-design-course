@@ -66,7 +66,7 @@
         },
         {
           "code": "HTTP/1.1 429 Too Many Requests\nRetry-After: 2\nRateLimit-Policy: \"default\";q=5;w=1\nRateLimit: \"default\";r=0;t=2",
-          "caption": "A rejected request. The two RateLimit headers come from an IETF draft that is not yet a standard; they tell the client its quota (q requests per w seconds), what remains (r) and when it resets (t)."
+          "caption": "A rejected request. The two RateLimit headers come from an IETF draft that is not yet a standard; they tell the client its quota (q requests per w seconds), how many requests it has left (r), and for how many more seconds that applies (t)."
         }
       ]
     },
@@ -230,7 +230,7 @@
             "**Stripe** uses the token bucket algorithm and implements its limiters on Redis. As well as a rate limit per user, it caps how many requests one user can have in progress at once. When its servers are overloaded, it rejects less important traffic first.",
             "**Amazon API Gateway** throttles with a token bucket. You set a rate, which is the refill rate, and a burst, which is the bucket's capacity. AWS describes these limits as targets applied on a best-effort basis, not exact ceilings.",
             "**NGINX** limits requests with its `limit_req` module, which uses the leaky bucket method. With `burst=5`, excess requests are delayed until more than 5 are waiting, then rejected. Adding `nodelay` passes the burst through at once. By default it rejects with `503`, so set `limit_req_status 429` for an API.",
-            "**Cloudflare** counts requests with the sliding window counter described above, across its whole network."
+            "**Cloudflare** has described using the sliding window counter described above, and measured how accurate it was."
           ]
         },
         {

@@ -1,0 +1,151 @@
+{
+  "slug": "how-a-request-travels",
+  "course": "System Design, Visually",
+  "part": "Foundations",
+  "title": "How a request travels",
+  "summary": "Every hop between a browser and a database, what each one does, and where the time goes.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "You type an address, and a page appears a fraction of a second later. In that time the request has passed through at least four machines and crossed the network several times." },
+        { "p": "Every system design question starts from this path. To make a page faster, or to keep it working when a machine fails, you need to know each hop and what it costs." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "The hops" },
+        { "list": [
+          "**DNS lookup.** The browser turns the name into an IP address. The DNS lesson covers this step.",
+          "**Connection.** The browser opens a TCP connection to that address and sets up encryption with TLS. The TCP and TLS lesson covers this step.",
+          "**Load balancer.** The address usually belongs to a load balancer. It picks one of several app servers and forwards the request.",
+          "**App server.** Your code runs here. It reads the request, fetches data, and builds a response.",
+          "**Database.** The app server asks the database for the data it needs and waits for the answer.",
+          "**Response.** The response goes back the way it came: app server, load balancer, browser."
+        ] },
+        { "figure": "path", "caption": "One request for a product page, from the browser to the database and back. Steps 3 and 4 stand for the TCP and TLS handshakes." },
+        { "h3": "Where the time goes" },
+        { "p": "Each trip across the network takes time, set mostly by distance. The time for a message to go there and back is the **round trip time**, or RTT." },
+        { "p": "On a first visit the browser has nothing cached and no connection open. It spends one round trip on DNS, one on TCP, one on TLS, and one on the request itself. The server's own work comes on top." },
+        { "p": "On a repeat visit the answer to the DNS lookup is cached and the connection is still open. Only the request's round trip and the server's work remain." },
+        { "figure": "waterfall", "caption": "The same request on a first visit and a repeat visit, with a 30 ms round trip and 40 ms of server work. Watch how much of the first visit is waiting on the network." },
+        { "p": "Light in optical fibre travels at about two thirds of its speed in a vacuum, roughly 200 km every millisecond. London and New York are about 5,600 km apart, so a round trip between them takes at least 56 ms before any server does any work." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**Connections are reused.** HTTP/1.1 keeps a connection open for more requests unless one side asks to close it, as [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112#section-9.3) describes. That is what makes the repeat visit cheap.",
+          "**TLS 1.3 needs one round trip.** [RFC 8446](https://www.rfc-editor.org/rfc/rfc8446) cut the full handshake to one round trip, down from two in TLS 1.2.",
+          "**Moving content closer helps most.** When the round trip dominates, a faster server barely changes the total. Putting copies of content near users does. That is the subject of the lesson on CDNs.",
+          "**Each hop is also a place to fail.** DNS, the load balancer, the app server and the database can each fail on their own. Later lessons cover what to do about each one."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Change the round trip time and the server's work. Compare a first visit with a repeat visit on an open connection." },
+        { "figure": "playground", "caption": "Time to load one page. Set the round trip to 150 ms, about a trip across an ocean and back, and see which part of the total grows." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "A request passes through DNS, a connection setup, a load balancer, an app server and a database, then back.",
+          "On a first visit, round trips for DNS, TCP and TLS come before the request itself.",
+          "Caching DNS answers and reusing connections removes most of that waiting.",
+          "When distance dominates, move the content closer rather than making the server faster."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "path": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "browser", "label": "Browser", "short": "Browser", "icon": "browser" },
+        { "id": "dns", "label": "DNS resolver", "short": "DNS", "icon": "globe" },
+        { "id": "lb", "label": "Load balancer", "short": "LB", "icon": "balancer" },
+        { "id": "app", "label": "App server", "short": "App", "icon": "server" },
+        { "id": "db", "label": "Database", "short": "DB", "icon": "store" }
+      ],
+      "steps": [
+        { "from": "browser", "to": "dns", "label": "Where is shop.example?" },
+        { "from": "dns", "to": "browser", "label": "203.0.113.7", "kind": "answer" },
+        { "from": "browser", "to": "lb", "label": "Open a connection" },
+        { "from": "lb", "to": "browser", "label": "Connected, encrypted", "kind": "refer" },
+        { "from": "browser", "to": "lb", "label": "GET /products/42" },
+        { "from": "lb", "to": "app", "label": "GET /products/42" },
+        { "from": "app", "to": "db", "label": "Product 42?" },
+        { "from": "db", "to": "app", "label": "1 row", "kind": "answer" },
+        { "from": "app", "to": "app", "label": "Build the page" },
+        { "from": "app", "to": "lb", "label": "200 OK", "kind": "answer" },
+        { "from": "lb", "to": "browser", "label": "200 OK", "kind": "answer", "set": { "browser": "page shown" } }
+      ]
+    },
+    "waterfall": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["net", "network"], ["work", "server work"]],
+      "scenarios": {
+        "first": {
+          "label": "First visit",
+          "note": "4 round trips before the page arrives",
+          "rows": [
+            { "label": "DNS lookup", "s": 0, "d": 30, "tone": "net", "text": "30" },
+            { "label": "TCP handshake", "s": 30, "d": 30, "tone": "net", "text": "30" },
+            { "label": "TLS handshake", "s": 60, "d": 30, "tone": "net", "text": "30" },
+            { "label": "Request travels", "s": 90, "d": 15, "tone": "net" },
+            { "label": "App server", "s": 105, "d": 40, "tone": "work", "text": "40" },
+            { "label": "Database query", "depth": 1, "s": 110, "d": 20, "tone": "work" },
+            { "label": "Response travels", "s": 145, "d": 15, "tone": "net" }
+          ]
+        },
+        "repeat": {
+          "label": "Repeat visit",
+          "note": "1 round trip: DNS cached, connection open",
+          "rows": [
+            { "label": "Request travels", "s": 0, "d": 15, "tone": "net" },
+            { "label": "App server", "s": 15, "d": 40, "tone": "work", "text": "40" },
+            { "label": "Database query", "depth": 1, "s": 20, "d": 20, "tone": "work" },
+            { "label": "Response travels", "s": 55, "d": 15, "tone": "net" }
+          ]
+        }
+      }
+    },
+    "playground": {
+      "kind": "calc",
+      "controls": [
+        { "type": "range", "key": "rtt", "label": "Round trip (ms)", "min": 5, "max": 300, "step": 5 },
+        { "type": "range", "key": "work", "label": "Server work (ms)", "min": 5, "max": 500, "step": 5 }
+      ],
+      "ctrl": { "rtt": 30, "work": 40 },
+      "rows": [
+        { "label": "DNS lookup", "expr": "rtt", "show": "1 round trip", "format": "d0" },
+        { "label": "TCP handshake", "expr": "rtt", "show": "1 round trip", "format": "d0" },
+        { "label": "TLS 1.3 handshake", "expr": "rtt", "show": "1 round trip", "format": "d0" },
+        { "label": "Request and response", "expr": "rtt + work", "show": "1 round trip + {work} ms of server work", "format": "d0" },
+        { "key": "first", "label": "First visit, in ms", "expr": "4 * rtt + work", "show": "4 × {rtt} + {work}", "format": "d0", "tone": "accent" },
+        { "key": "repeat", "label": "Repeat visit, in ms", "expr": "rtt + work", "show": "{rtt} + {work}", "format": "d0", "tone": "accent" }
+      ]
+    }
+  },
+  "references": [
+    { "label": "RFC 9112: HTTP/1.1", "url": "https://www.rfc-editor.org/rfc/rfc9112#section-9.3", "note": "Persistent connections: HTTP/1.1 keeps a connection open by default.", "type": "standard" },
+    { "label": "RFC 9293: Transmission Control Protocol", "url": "https://www.rfc-editor.org/rfc/rfc9293", "note": "The current TCP standard, including the three-way handshake.", "type": "standard" },
+    { "label": "RFC 8446: TLS 1.3", "url": "https://www.rfc-editor.org/rfc/rfc8446", "note": "The one round trip handshake.", "type": "standard" },
+    { "label": "MDN: How browsers work", "url": "https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work", "note": "The browser's side of the same steps: DNS, TCP, TLS, then the request.", "type": "docs" }
+  ]
+}

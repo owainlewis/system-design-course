@@ -1,0 +1,266 @@
+{
+  "slug": "latency-numbers",
+  "course": "System Design, Visually",
+  "part": "Foundations",
+  "title": "Latency numbers",
+  "summary": "How long common operations take, from a CPU cache to a packet across an ocean, and how to use the numbers.",
+  "minutes": 7,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "A design is a set of choices about where data lives and how often you fetch it. Whether a choice is fast or slow depends on what each fetch costs."
+        },
+        {
+          "p": "The costs differ by more than you might guess. Reading from main memory and sending a packet across an ocean differ by a factor of more than a million. You can't reason about a design without a rough sense of these numbers."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "The numbers",
+      "blocks": [
+        {
+          "p": "Jeff Dean of Google published this list in a [2009 talk on large distributed systems](https://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf). The hardware has changed since, so read the values as orders of magnitude, not measurements."
+        },
+        {
+          "figure": "numbers",
+          "caption": "Dean's 2009 numbers. Switch to the linear scale and almost every bar vanishes next to the round trip across an ocean."
+        },
+        {
+          "h3": "What to take from them"
+        },
+        {
+          "list": [
+            "**Memory is fast, the network is slow.** A main memory reference is 100 ns. A round trip inside one datacenter is 500,000 ns, which is 5,000 times longer.",
+            "**Distance can't be engineered away.** The trip from California to the Netherlands and back is 150 ms. Light in fibre needs most of that time for the distance alone.",
+            "**Spinning disks are slow to start.** A disk seek is 10 ms, and nothing happens on that disk until it finishes. Most databases now run on SSDs, which have no moving parts, but the list predates that change.",
+            "**Reading in bulk is cheaper.** Reading 1 MB in sequence costs far less than 1 MB of scattered small reads, on disk and over the network."
+          ]
+        },
+        {
+          "h3": "Reading 1 MB"
+        },
+        {
+          "p": "The same megabyte costs very different amounts depending on where it comes from."
+        },
+        {
+          "figure": "one-mb",
+          "caption": "Reading 1 MB in sequence from memory, from another machine over the network, and from a spinning disk, using Dean's numbers."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**Count the round trips.** A page that makes 30 database queries one after another, each in the same datacenter, spends at least 15 ms on the network alone. One query that fetches everything spends 0.5 ms.",
+            "**Keep chatty work close.** Two services that call each other many times per request belong in the same datacenter. A call across regions costs more than all the in-memory work in the request.",
+            "**Look up current numbers.** Colin Scott keeps an [interactive version](https://colin-scott.github.io/personal_website/research/interactive_latency.html) of the list that estimates how each number has changed by year."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        {
+          "p": "A request makes some number of calls to another service, one after another. Choose how many, and where the other service runs."
+        },
+        {
+          "figure": "playground",
+          "caption": "Network time for sequential calls. Try 20 calls across an ocean."
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "Memory is measured in nanoseconds, the datacenter network in fractions of a millisecond, and distant regions in hundreds of milliseconds.",
+            "Treat the numbers as orders of magnitude. The ratios matter more than the exact values.",
+            "Most slow requests are slow because of round trips, not computation.",
+            "Fewer, larger requests beat many small ones."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "numbers": {
+      "kind": "bars",
+      "format": "time-ns",
+      "still": 0.99,
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "scale",
+          "label": "Scale",
+          "options": [
+            [
+              "log",
+              "Log"
+            ],
+            [
+              "linear",
+              "Linear"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "scale": "log"
+      },
+      "items": [
+        {
+          "label": "L1 cache reference",
+          "value": 0.5
+        },
+        {
+          "label": "Branch mispredict",
+          "value": 5
+        },
+        {
+          "label": "L2 cache reference",
+          "value": 7
+        },
+        {
+          "label": "Mutex lock or unlock",
+          "value": 25
+        },
+        {
+          "label": "Main memory reference",
+          "value": 100,
+          "tone": "accent"
+        },
+        {
+          "label": "Send 2 KB over 1 Gbps network",
+          "value": 20000
+        },
+        {
+          "label": "Read 1 MB from memory",
+          "value": 250000
+        },
+        {
+          "label": "Round trip in one datacenter",
+          "value": 500000,
+          "tone": "accent"
+        },
+        {
+          "label": "Disk seek",
+          "value": 10000000,
+          "tone": "accent"
+        },
+        {
+          "label": "Read 1 MB from disk",
+          "value": 30000000
+        },
+        {
+          "label": "California to Netherlands and back",
+          "value": 150000000,
+          "tone": "accent"
+        }
+      ],
+      "stat": "the slowest is 300 million times the fastest"
+    },
+    "one-mb": {
+      "kind": "bars",
+      "format": "time-ns",
+      "scale": "linear",
+      "still": 0.99,
+      "items": [
+        {
+          "label": "From memory",
+          "value": 250000,
+          "tone": "accent"
+        },
+        {
+          "label": "Over the network",
+          "value": 10000000
+        },
+        {
+          "label": "From a spinning disk",
+          "value": 30000000
+        }
+      ],
+      "stat": "disk is 120 times slower than memory"
+    },
+    "playground": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "calls",
+          "label": "Calls in a row",
+          "min": 1,
+          "max": 50
+        },
+        {
+          "type": "toggle",
+          "key": "rtt",
+          "label": "Other service",
+          "options": [
+            [
+              0.5,
+              "Same datacenter"
+            ],
+            [
+              150,
+              "Across an ocean"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "calls": 10,
+        "rtt": 0.5
+      },
+      "rows": [
+        {
+          "label": "Round trip per call, in ms",
+          "expr": "rtt",
+          "show": "from the list above",
+          "format": "d1"
+        },
+        {
+          "key": "total",
+          "label": "Network time, in ms",
+          "expr": "calls * rtt",
+          "show": "{calls} calls × {rtt} ms",
+          "format": "d1",
+          "tone": "accent"
+        },
+        {
+          "label": "Same work in one call, in ms",
+          "expr": "rtt",
+          "show": "batch the calls into one request",
+          "format": "d1"
+        }
+      ],
+      "formats": {
+        "rtt": "d1"
+      }
+    }
+  },
+  "references": [
+    {
+      "label": "Jeff Dean: Designs, lessons and advice from building large distributed systems (LADIS 2009)",
+      "url": "https://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf",
+      "note": "The slide \"Numbers everyone should know\" is the source of the list.",
+      "type": "engineering"
+    },
+    {
+      "label": "Colin Scott: Latency numbers every programmer should know",
+      "url": "https://colin-scott.github.io/personal_website/research/interactive_latency.html",
+      "note": "The same list, with estimates of how each number has changed by year.",
+      "type": "engineering"
+    }
+  ]
+}

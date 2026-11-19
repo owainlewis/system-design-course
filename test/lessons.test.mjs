@@ -1,0 +1,94 @@
+// Checks every figure in every lesson is well formed for its kind, and asserts the numbers the text relies on.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import vm from 'node:vm';
+
+const root = new URL('..', import.meta.url).pathname;
+const read = p => readFileSync(root + p, 'utf8');
+const ctx = vm.createContext({});
+const kinds = readdirSync(root + 'src/kinds').filter(f => f.endsWith('.js')).sort();
+vm.runInContext(`const KINDS = {}; const TIN = 0.55, TOUT = 0.5;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x)); const lerp = (a, b, f) => a + (b - a) * f;
+const fmt = (n, d = 0) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+${read('src/sim.js')}
+${kinds.map(k => read('src/kinds/' + k)).join('\n')}
+globalThis.api = { KINDS, calcRun, tlEnd, tlSpans };
+globalThis.lookup = name => eval(name);`, ctx);
+export const api = ctx.api, lookup = ctx.lookup;
+const course = JSON.parse(read('course.json'));
+const slugs = readdirSync(root + 'lessons').filter(f => f.endsWith('.json')).map(f => f.slice(0, -5));
+export const lesson = s => JSON.parse(read(`lessons/${s}.json`));
+
+const validators = {
+  flow(fig) {
+    const ids = new Set(fig.actors.map(a => a.id));
+    assert.equal(ids.size, fig.actors.length, 'actor ids are unique');
+    const scenarios = fig.scenarios ? Object.values(fig.scenarios) : [{ steps: fig.steps, state: fig.state }];
+    for (const sc of scenarios) {
+      assert.ok(sc.steps.length > 0, 'has steps');
+      for (const s of sc.steps) {
+        assert.ok(ids.has(s.from) && ids.has(s.to), `step "${s.label}" uses known actors`);
+        for (const k of Object.keys(s.set || {})) assert.ok(ids.has(k), `step "${s.label}" sets a known actor`);
+      }
+      for (const k of Object.keys(sc.state || {})) assert.ok(ids.has(k), 'state is on a known actor');
+    }
+  },
+  timeline(fig) {
+    const scenarios = fig.scenarios ? Object.values(fig.scenarios) : [{ rows: fig.rows }];
+    for (const sc of scenarios) for (const r of sc.rows) for (const s of api.tlSpans(r)) assert.ok(s.d > 0 && s.s >= 0, `span in "${r.label}" has a start and a length`);
+  },
+  bars(fig) {
+    const sets = fig.sets ? Object.values(fig.sets).map(s => s.items) : [fig.items];
+    for (const items of sets) for (const it of items) assert.ok(it.value > 0, `${it.label} has a positive value`);
+  },
+  calc(fig) {
+    for (const c of fig.controls || []) if (c.type === 'range') assert.ok(fig.ctrl[c.key] >= c.min && fig.ctrl[c.key] <= c.max, `${c.key} starts inside its range`);
+    // Every combination of slider ends must still give finite numbers.
+    const ranges = (fig.controls || []).filter(c => c.type === 'range');
+    for (const end of ['min', 'max']) {
+      const ctrl = { ...fig.ctrl }; ranges.forEach(c => ctrl[c.key] = c[end]);
+      for (const r of api.calcRun(fig, ctrl).out) assert.ok(Number.isFinite(r.v), `${r.label} is finite at ${end}`);
+    }
+  }
+};
+
+for (const slug of slugs) {
+  test(`${slug}: every figure is well formed`, () => {
+    const l = lesson(slug);
+    assert.ok(course.parts.some(p => p.lessons.some(([s]) => s === slug)), 'listed in course.json');
+    for (const [id, fig] of Object.entries(l.figures)) {
+      assert.ok(api.KINDS[fig.kind || 'ratelimit'] || !fig.kind, `${id}: kind "${fig.kind}" exists`);
+      validators[fig.kind]?.(fig);
+    }
+    const used = l.sections.flatMap(s => s.blocks.filter(b => b.figure).map(b => b.figure));
+    for (const id of Object.keys(l.figures)) assert.ok(used.includes(id), `${id} is used in the text`);
+  });
+}
+
+/* ---------- numbers the text states ---------- */
+const end = rows => api.tlEnd(rows);
+test('request path: first visit 160 ms, repeat visit 70 ms', () => {
+  const f = lesson('how-a-request-travels').figures.waterfall.scenarios;
+  assert.equal(end(f.first.rows), 160); assert.equal(end(f.repeat.rows), 70);
+  const c = lesson('how-a-request-travels').figures.playground, out = api.calcRun(c, c.ctrl).env;
+  assert.equal(out.first, 160); assert.equal(out.repeat, 70);
+});
+test('latency numbers: 100 ns memory vs 500,000 ns datacenter round trip is 5,000 times', () => {
+  const items = lesson('latency-numbers').figures.numbers.items, v = l => items.find(i => i.label === l).value;
+  assert.equal(v('Round trip in one datacenter') / v('Main memory reference'), 5000);
+  assert.equal(v('California to Netherlands and back') / v('L1 cache reference'), 3e8);
+});
+test('TCP and TLS: round trips before the request match the notes', () => {
+  const sc = lesson('tcp-and-tls').figures.handshakes.scenarios;
+  const before = s => s.steps.slice(0, s.steps.findIndex(x => x.label.includes('GET /'))).filter(x => x.from === 'client').length;
+  assert.equal(before(sc.tls12), 3); assert.equal(before(sc.tls13), 2); assert.equal(before(sc.zero), 1);
+});
+test('HTTP: HTTP/2 beats one HTTP/1.1 connection; on loss HTTP/3 delays only the lost stream', () => {
+  const v = lesson('http').figures.versions.scenarios, l = lesson('http').figures.loss.scenarios;
+  assert.ok(end(v.h2.rows) < end(v.h1x3.rows) && end(v.h1x3.rows) < end(v.h1.rows));
+  const fin = (rows, name) => end([rows.find(r => r.label === name)]);
+  assert.ok(fin(l.h3.rows, 'style.css') < fin(l.h3.rows, 'photo-1.jpg'));
+  assert.equal(fin(l.h2.rows, 'style.css'), fin(l.h2.rows, 'photo-1.jpg'));
+});
+test("estimates: Little's law example gives 400 requests in progress", () => assert.equal(2000 * 0.2, 400));

@@ -1,0 +1,142 @@
+{
+  "slug": "http",
+  "course": "System Design, Visually",
+  "part": "Foundations",
+  "title": "HTTP, from 1.1 to 3",
+  "summary": "How each version of HTTP sends many requests at once, and why HTTP/3 moved off TCP.",
+  "minutes": 10,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A web page is rarely one file. The HTML refers to stylesheets, scripts and images, and the browser needs all of them before the page looks right." },
+        { "p": "Each request costs at least one round trip. If the browser asks for the files one at a time, the waits add up. Each version of HTTP has a different answer to the question of how to send many requests at once." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "The meaning of HTTP is the same in every version: methods such as GET and POST, status codes such as 200 and 404, and headers. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) defines that part once. The versions differ in how they put requests and responses on the wire." },
+        { "h3": "HTTP/1.1" },
+        { "p": "HTTP/1.1 sends requests and responses as text over a TCP connection. A connection carries one exchange at a time. HTTP/1.1 does allow a client to send several requests without waiting, but [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112#section-9.3.2) requires the responses to come back in the same order, so one slow response holds up the rest." },
+        { "p": "To fetch files in parallel, clients open several connections to the same server. [RFC 9113](https://www.rfc-editor.org/rfc/rfc9113#section-1) notes this workaround and its cost: each connection needs its own handshakes." },
+        { "h3": "HTTP/2" },
+        { "p": "HTTP/2 splits each request and response into binary **frames** and tags each frame with a **stream** number. Frames from many streams share one TCP connection, so the browser can ask for every file at once. HTTP/2 also compresses headers, which repeat on every request." },
+        { "figure": "versions", "caption": "Loading a page and five files, with a 40 ms round trip. HTTP/2 asks for all five files at once on one connection." },
+        { "h3": "HTTP/3" },
+        { "p": "HTTP/2 fixed head-of-line blocking in HTTP, but not in TCP. TCP delivers bytes in order, so when one packet is lost, every stream on the connection waits for it to be sent again." },
+        { "p": "HTTP/3 runs on **QUIC**, a transport built on UDP. QUIC knows about streams, so a lost packet delays only the stream it belonged to. [RFC 9114](https://www.rfc-editor.org/rfc/rfc9114#section-1) gives this as the reason for HTTP/3." },
+        { "figure": "loss", "caption": "One packet belonging to the image is lost. Over HTTP/2 every file waits for it. Over HTTP/3 only the image does." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**The versions coexist.** A server can speak all three. A client usually starts on TCP and switches to HTTP/3 once the server advertises it with an `Alt-Svc` header, as [RFC 9114](https://www.rfc-editor.org/rfc/rfc9114#section-3.1.1) describes.",
+          "**QUIC includes TLS 1.3.** Encryption is part of QUIC, and its handshake sets up transport and encryption together. See [RFC 9001](https://www.rfc-editor.org/rfc/rfc9001).",
+          "**Header compression differs.** HTTP/2 uses HPACK, defined in [RFC 7541](https://www.rfc-editor.org/rfc/rfc7541). HTTP/3 uses QPACK, defined in [RFC 9204](https://www.rfc-editor.org/rfc/rfc9204), which tolerates streams arriving out of order.",
+          "**Inside a datacenter, HTTP/2 is common.** gRPC, a popular way for services to call each other, runs over HTTP/2, as its [protocol document](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md) describes."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "HTTP's meaning, such as methods, status codes and headers, is the same in every version.",
+          "HTTP/1.1 handles one exchange per connection at a time, so clients open several connections.",
+          "HTTP/2 sends many streams over one TCP connection, but a lost packet stalls them all.",
+          "HTTP/3 runs on QUIC over UDP, where a lost packet stalls only its own stream."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "versions": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["net", "request and response"], ["wait", "opening a connection"]],
+      "scenarios": {
+        "h1": {
+          "label": "HTTP/1.1, one connection",
+          "note": "one file at a time",
+          "rows": [
+            { "label": "index.html", "s": 0, "d": 50, "tone": "net" },
+            { "label": "style.css", "s": 50, "d": 50, "tone": "net" },
+            { "label": "app.js", "s": 100, "d": 50, "tone": "net" },
+            { "label": "photo-1.jpg", "s": 150, "d": 50, "tone": "net" },
+            { "label": "photo-2.jpg", "s": 200, "d": 50, "tone": "net" },
+            { "label": "photo-3.jpg", "s": 250, "d": 50, "tone": "net" }
+          ]
+        },
+        "h1x3": {
+          "label": "HTTP/1.1, three connections",
+          "note": "two extra connections, each with its own handshakes",
+          "rows": [
+            { "label": "index.html", "s": 0, "d": 50, "tone": "net" },
+            { "label": "style.css", "s": 50, "d": 50, "tone": "net" },
+            { "label": "app.js", "spans": [{ "s": 0, "d": 80, "tone": "wait", "text": "connect" }, { "s": 80, "d": 50, "tone": "net" }] },
+            { "label": "photo-1.jpg", "spans": [{ "s": 0, "d": 80, "tone": "wait", "text": "connect" }, { "s": 80, "d": 50, "tone": "net" }] },
+            { "label": "photo-2.jpg", "s": 100, "d": 50, "tone": "net" },
+            { "label": "photo-3.jpg", "s": 130, "d": 50, "tone": "net" }
+          ]
+        },
+        "h2": {
+          "label": "HTTP/2",
+          "note": "all five files requested together on one connection",
+          "rows": [
+            { "label": "index.html", "s": 0, "d": 50, "tone": "net" },
+            { "label": "style.css", "s": 50, "d": 90, "tone": "net" },
+            { "label": "app.js", "s": 50, "d": 90, "tone": "net" },
+            { "label": "photo-1.jpg", "s": 50, "d": 90, "tone": "net" },
+            { "label": "photo-2.jpg", "s": 50, "d": 90, "tone": "net" },
+            { "label": "photo-3.jpg", "s": 50, "d": 90, "tone": "net" }
+          ]
+        }
+      }
+    },
+    "loss": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["net", "request and response"], ["stall", "waiting for the lost packet"]],
+      "scenarios": {
+        "h2": {
+          "label": "HTTP/2 over TCP",
+          "note": "every stream waits for the lost packet",
+          "rows": [
+            { "label": "style.css", "spans": [{ "s": 0, "d": 50, "tone": "net" }, { "s": 50, "d": 50, "tone": "stall" }, { "s": 100, "d": 40, "tone": "net" }] },
+            { "label": "app.js", "spans": [{ "s": 0, "d": 50, "tone": "net" }, { "s": 50, "d": 50, "tone": "stall" }, { "s": 100, "d": 40, "tone": "net" }] },
+            { "label": "photo-1.jpg", "spans": [{ "s": 0, "d": 50, "tone": "net" }, { "s": 50, "d": 50, "tone": "stall", "text": "lost" }, { "s": 100, "d": 40, "tone": "net" }] },
+            { "label": "photo-2.jpg", "spans": [{ "s": 0, "d": 50, "tone": "net" }, { "s": 50, "d": 50, "tone": "stall" }, { "s": 100, "d": 40, "tone": "net" }] },
+            { "label": "photo-3.jpg", "spans": [{ "s": 0, "d": 50, "tone": "net" }, { "s": 50, "d": 50, "tone": "stall" }, { "s": 100, "d": 40, "tone": "net" }] }
+          ]
+        },
+        "h3": {
+          "label": "HTTP/3 over QUIC",
+          "note": "only the image with the lost packet waits",
+          "rows": [
+            { "label": "style.css", "s": 0, "d": 90, "tone": "net" },
+            { "label": "app.js", "s": 0, "d": 90, "tone": "net" },
+            { "label": "photo-1.jpg", "spans": [{ "s": 0, "d": 50, "tone": "net" }, { "s": 50, "d": 50, "tone": "stall", "text": "lost" }, { "s": 100, "d": 40, "tone": "net" }] },
+            { "label": "photo-2.jpg", "s": 0, "d": 90, "tone": "net" },
+            { "label": "photo-3.jpg", "s": 0, "d": 90, "tone": "net" }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "RFC 9110: HTTP semantics", "url": "https://www.rfc-editor.org/rfc/rfc9110", "note": "Methods, status codes and headers, shared by every version.", "type": "standard" },
+    { "label": "RFC 9112: HTTP/1.1", "url": "https://www.rfc-editor.org/rfc/rfc9112", "note": "Persistent connections and pipelining, with responses in order.", "type": "standard" },
+    { "label": "RFC 9113: HTTP/2", "url": "https://www.rfc-editor.org/rfc/rfc9113", "note": "Frames, streams and multiplexing over one connection.", "type": "standard" },
+    { "label": "RFC 9114: HTTP/3", "url": "https://www.rfc-editor.org/rfc/rfc9114", "note": "HTTP over QUIC, and why it avoids TCP head-of-line blocking.", "type": "standard" },
+    { "label": "RFC 9000: QUIC", "url": "https://www.rfc-editor.org/rfc/rfc9000", "note": "The transport under HTTP/3: streams over UDP.", "type": "standard" }
+  ]
+}

@@ -55,7 +55,7 @@ KINDS.ring = {
     const maxRows = Math.max(3, Math.ceil(Math.max(...Object.values(counts), ...(f.prev ? Object.values(countOf(f.prev.owner)) : [0])) / perRow));
     const boxH = 30 + maxRows * pitch + 8, boxW = perRow * pitch + 24;
     const { ctx, w, h } = fitCanvas(f.cv, ww => ww < 600 ? 300 + Math.ceil(8 / 2) * (boxH + 10) : Math.max(330, 40 + Math.ceil(8 / Math.max(1, Math.floor((ww * .56) / (boxW + 12)))) * (boxH + 12)));
-    const age = (performance.now() - f.changedAt) / 1000, mv = ease(clamp(age / .9));
+    const age = (performance.now() - f.changedAt) / 1000, mv = ease(clamp(age / 1.4));
 
     // left: the ring, or the formula
     const R = portrait ? Math.min(w * .32, 112) : Math.min(h * .36, w * .17), cx = portrait ? w / 2 : Math.max(R + 40, w * .22), cy = portrait ? R + 34 : h / 2;
@@ -66,7 +66,7 @@ KINDS.ring = {
       // ownership arcs: from the previous point to each point, in that point's server colour
       pts.forEach((p, i) => { const prev = pts[(i - 1 + pts.length) % pts.length]; let a0 = prev.at, a1 = p.at; if (a1 <= a0) a1 += 1; ctx.strokeStyle = serverColor(p.s, f); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, R, ang(a0), ang(a1)); ctx.stroke(); });
       ctx.lineWidth = 1;
-      f.keys.forEach(k => { const p = P(unit(k), R - 10); dot(ctx, p.x, p.y, 2, f.moved.has(k) && age < 3 ? COL.accent : serverColor(f.assign.owner[k], f)); });
+      f.keys.forEach(k => { const p = P(unit(k), R - 10); dot(ctx, p.x, p.y, 2, f.moved.has(k) && age < 4 ? COL.accent : serverColor(f.assign.owner[k], f)); });
       const few = pts.length <= 12;
       pts.forEach(p => { const q = P(p.at, R); if (few) { rr(ctx, q.x - 6, q.y - 6, 12, 12, 3); ctx.fillStyle = COL.node; ctx.fill(); ctx.strokeStyle = serverColor(p.s, f); ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1; const l = P(p.at, R + 18); text(ctx, p.s, l.x, l.y, { align: 'center', size: 12, weight: 600, color: COL.ink }); } else { const a = P(p.at, R - 4), b = P(p.at, R + 4); ctx.strokeStyle = serverColor(p.s, f); line(ctx, a, b); } });
       text(ctx, 'each key goes to the next', cx, cy - 8, { align: 'center', size: 11.5 });
@@ -99,7 +99,7 @@ KINDS.ring = {
         const po = f.prev.owner[k]; const from = f.servers.includes(po) ? slot(po, idxPrev[k]) : { x: to.x, y: to.y - 30 };
         p = { x: lerp(from.x, to.x, mv), y: lerp(from.y, to.y, mv) };
       }
-      const hot = f.moved.has(k) && age < 3;
+      const hot = f.moved.has(k) && age < 4;
       dot(ctx, p.x, p.y, hot ? 3 : 2.6, hot ? COL.accent : serverColor(o, f));
     });
 

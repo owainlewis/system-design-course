@@ -5,6 +5,8 @@ const FLAT = document.documentElement.hasAttribute('data-flat');
 const lessonHref = slug => FLAT ? `${slug}.html` : `/${slug}/`;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TIN = 0.55, TOUT = 0.5;
+// Figures play slower than real time so the eye can follow each request.
+const SPEED = 0.7;
 const ALGOS = [['fixed', 'Fixed window'], ['log', 'Sliding log'], ['counter', 'Sliding counter'], ['token', 'Token bucket'], ['leaky', 'Leaky bucket']];
 const ALGO_NAME = Object.fromEntries([['none', 'No limit'], ...ALGOS]);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -106,7 +108,7 @@ function renderControls(f) {
   box.innerHTML = f.def.controls.map(c => {
     if (c.type === 'toggle') return `<div class="ctl"><span>${c.label}</span><div class="seg">${c.options.map(([v, l]) => `<button data-k="${c.key}" data-v="${v}" aria-pressed="${String(f.ctrl[c.key]) === String(v)}">${l}</button>`).join('')}</div></div>`;
     if (c.type === 'algo') return `<div class="ctl"><div class="seg">${ALGOS.map(([v, l]) => `<button data-k="algo" data-v="${v}" aria-pressed="${f.ctrl.algo === v}">${l}</button>`).join('')}</div></div>`;
-    if (c.type === 'range') return `<div class="ctl"><label for="r-${f.id}-${c.key}">${c.label}</label><input type="range" id="r-${f.id}-${c.key}" data-k="${c.key}" min="${c.min}" max="${c.max}" value="${f.ctrl[c.key]}"><output>${f.ctrl[c.key]}</output></div>`;
+    if (c.type === 'range') return `<div class="ctl"><label for="r-${f.id}-${c.key}">${c.label}</label><input type="range" id="r-${f.id}-${c.key}" data-k="${c.key}" min="${c.min}" max="${c.max}" step="${c.step || 1}" value="${f.ctrl[c.key]}"><output>${f.ctrl[c.key]}</output></div>`;
     if (c.type === 'action') return `<div class="ctl">${c.actions.map(([a, l]) => `<button data-act="${a}">${l}</button>`).join('')}</div>`;
     if (c.type === 'burst') return `<div class="ctl"><button class="primary" data-burst>${c.label}</button><button data-clear>Clear</button></div>`;
     return '';
@@ -415,7 +417,7 @@ function frame(ms) {
   for (const f of FIGS) {
     if (!f.drawn || visible(f.el)) {
       const K = kindOf(f), P = K.period(f);
-      if (f.playing && f.drawn) f.t = (f.t + dt) % P;
+      if (f.playing && f.drawn) f.t = (f.t + dt * SPEED * (f.def.speed ?? 1)) % P;
       const h = K.draw(f, doStats || !f.statsHTML); f.drawn = true;
       if (h != null && h !== f.statsHTML) { f.statsEl.innerHTML = h; f.statsHTML = h; }
     }

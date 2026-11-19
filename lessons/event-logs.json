@@ -41,9 +41,9 @@
       "heading": "In practice",
       "blocks": [
         { "list": [
-          "**Kafka is the common event log.** Its [documentation](https://kafka.apache.org/documentation/#intro_concepts_and_terms) describes topics split into partitions, events with the same key going to the same partition, and order kept per partition.",
+          "**Kafka is the common event log.** Its [documentation](https://kafka.apache.org/intro#main-concepts-and-terminology) describes topics split into partitions, events with the same key going to the same partition, and order kept per partition.",
           "**Retention is a setting.** Kafka keeps events for a configured time or size. The broker default for `log.retention.hours` is 168, which is 7 days.",
-          "**Compaction keeps the latest value per key.** With [log compaction](https://kafka.apache.org/documentation/#compaction), Kafka keeps at least the last event for each key, so a topic can hold the current state of every record.",
+          "**Compaction keeps the latest value per key.** With [log compaction](https://kafka.apache.org/44/design/design/#log-compaction), Kafka keeps at least the last event for each key, so a topic can hold the current state of every record.",
           "**The log as the source of truth.** Jay Kreps' [The Log](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying) explains how a shared log lets many systems build their own views of the same data.",
           "**Choose the key with care.** One very busy key puts all its events in one partition, and that partition becomes the bottleneck, as in the sharding lesson."
         ] }
@@ -89,8 +89,8 @@
     }
   },
   "references": [
-    { "label": "Apache Kafka: main concepts and terminology", "url": "https://kafka.apache.org/documentation/#intro_concepts_and_terms", "note": "Topics, partitions, keys, ordering and retention.", "type": "docs" },
-    { "label": "Apache Kafka: log compaction", "url": "https://kafka.apache.org/documentation/#compaction", "note": "Keeping the latest event for each key.", "type": "docs" },
+    { "label": "Apache Kafka: main concepts and terminology", "url": "https://kafka.apache.org/intro#main-concepts-and-terminology", "note": "Topics, partitions, keys, ordering and retention.", "type": "docs" },
+    { "label": "Apache Kafka: log compaction", "url": "https://kafka.apache.org/44/design/design/#log-compaction", "note": "Keeping the latest event for each key.", "type": "docs" },
     { "label": "Jay Kreps: The Log (2013)", "url": "https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying", "note": "Why a shared log is a good base for data systems.", "type": "engineering" }
   ]
 }

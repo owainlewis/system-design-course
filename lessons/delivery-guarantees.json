@@ -36,8 +36,8 @@
       "blocks": [
         { "list": [
           "**SQS standard queues deliver at least once.** Amazon SQS says a [standard queue](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html) can deliver a message more than once, so consumers should be idempotent.",
-          "**SQS FIFO queues remove duplicates for a while.** [FIFO queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html) drop a message with the same deduplication ID sent within a 5-minute interval.",
-          "**Kafka offers exactly once inside Kafka.** Its [idempotent producer and transactions](https://kafka.apache.org/documentation/#semantics) let a job read from one topic and write to another with each event counted once. Effects outside Kafka still need an idempotent consumer.",
+          "**SQS FIFO queues remove duplicates for a while.** [FIFO queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html) don't add a second copy of a message sent with the same deduplication ID within a 5-minute interval.",
+          "**Kafka offers exactly once inside Kafka.** Its [idempotent producer and transactions](https://kafka.apache.org/44/design/design/#message-delivery-semantics) let a job read from one topic and write to another with each event counted once. Effects outside Kafka still need an idempotent consumer.",
           "**Default to at least once.** Losing data is usually worse than handling it twice, and duplicates can be made harmless. Choose at most once only for data you can afford to lose, such as some metrics."
         ] }
       ]
@@ -111,6 +111,6 @@
   "references": [
     { "label": "Amazon SQS: standard queues", "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html", "note": "At-least-once delivery and duplicate messages.", "type": "docs" },
     { "label": "Amazon SQS: exactly-once processing in FIFO queues", "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html", "note": "Deduplication within a 5-minute interval.", "type": "docs" },
-    { "label": "Apache Kafka: message delivery semantics", "url": "https://kafka.apache.org/documentation/#semantics", "note": "At most once, at least once and exactly once in Kafka.", "type": "docs" }
+    { "label": "Apache Kafka: message delivery semantics", "url": "https://kafka.apache.org/44/design/design/#message-delivery-semantics", "note": "At most once, at least once and exactly once in Kafka.", "type": "docs" }
   ]
 }

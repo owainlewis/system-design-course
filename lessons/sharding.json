@@ -42,7 +42,7 @@
       "heading": "In practice",
       "blocks": [
         { "list": [
-          "**MongoDB offers both.** Its docs describe [ranged sharding](https://www.mongodb.com/docs/manual/core/ranged-sharding/) and [hashed sharding](https://www.mongodb.com/docs/manual/core/hashed-sharding/), and warn that a shard key that grows steadily, such as a timestamp, concentrates inserts on one shard under ranged sharding.",
+          "**MongoDB offers both.** Its docs describe [ranged sharding](https://www.mongodb.com/docs/manual/core/ranged-sharding/) and [hashed sharding](https://www.mongodb.com/docs/manual/core/hashed-sharding/). The hashed page warns that a key that grows steadily, such as a timestamp, sends every insert to one shard under ranged sharding.",
           "**DynamoDB shards by partition key.** Amazon's [partition key guide](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html) recommends keys with many distinct values, requested evenly, and describes adding a suffix to spread a hot key.",
           "**Shard late.** Sharding makes every later change harder. Scale up, add read replicas and cache first, and shard when the write volume or data size leaves no other choice.",
           "**Pick the key from your queries.** Choose the key that most queries filter by, such as the user or the tenant, so most queries touch one shard."

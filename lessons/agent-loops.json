@@ -73,7 +73,7 @@
           "list": [
             "**Start without an agent.** Anthropic's [Building effective agents](https://www.anthropic.com/research/building-effective-agents) separates fixed workflows from agents that choose their own steps, and advises the simplest design that works.",
             "**The pattern has a paper.** [ReAct](https://arxiv.org/abs/2210.03629) showed models alternating between reasoning and actions such as searches, using each result to choose the next step.",
-            "**Tool use is in the APIs.** Model APIs take tool definitions as JSON Schema and return structured tool calls. See Anthropic's [tool use overview](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview).",
+            "**Tool use is in the APIs.** Model APIs take a schema for each tool's input and return structured tool calls. See Anthropic's [tool use overview](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview).",
             "**Tools can be shared.** The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard for exposing tools and data to models, so one tool server works with many apps.",
             "**Guard the side effects.** Treat tool requests as untrusted input. Check permissions, ask a person before anything that can't be undone, and log every call."
           ]
@@ -445,7 +445,7 @@
     },
     {
       "label": "Anthropic: tool use overview",
-      "url": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
       "note": "Defining tools and handling tool calls.",
       "type": "docs"
     },

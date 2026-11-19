@@ -70,7 +70,7 @@
             "**Open-source gateways exist.** [LiteLLM's proxy](https://docs.litellm.ai/docs/simple_proxy) offers one OpenAI-style API over many providers, with keys, budgets, fallbacks and logging.",
             "**So do hosted ones.** [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) adds caching, rate limiting, retries and analytics in front of model providers.",
             "**Streams use server-sent events.** The [server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html) format sends a stream of events over one HTTP response. Check that every proxy and load balancer on the path doesn't buffer it.",
-            "**Providers cache prompt prefixes.** Anthropic's [prompt caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) reuses the processing of a repeated prefix, such as long instructions, across requests. Put the parts that don't change first.",
+            "**Providers cache prompt prefixes.** Anthropic's [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) reuses the processing of a repeated prefix, such as long instructions, across requests. Put the parts that don't change first.",
             "**Keep it thin.** The gateway is on the path of every model call. Make it stateless, run several copies, and keep slow work like log shipping off the request path."
           ]
         }
@@ -346,7 +346,7 @@
     },
     {
       "label": "Anthropic: prompt caching",
-      "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
       "note": "Reusing a repeated prompt prefix across requests.",
       "type": "docs"
     }

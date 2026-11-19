@@ -35,7 +35,7 @@
         { "list": [
           "**S3 is the common reference.** Amazon S3 says it is designed for 99.999999999% durability, and keeps copies across several Availability Zones for most storage classes. See its [data protection page](https://docs.aws.amazon.com/AmazonS3/latest/userguide/DataDurability.html).",
           "**Reads see the latest write.** S3 gives [strong read-after-write consistency](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html#ConsistencyModel): after a successful PUT, any read returns the new object.",
-          "**Multipart has fixed limits.** S3's [multipart upload page](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html) recommends multipart for large objects and lists the limits on part size and count.",
+          "**Multipart has fixed limits.** S3's [multipart upload page](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html) recommends multipart for objects of 100 MB or larger, and allows up to 10,000 parts.",
           "**Presigned URLs expire.** S3 [presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html) carry the signer's permissions until they expire. Keep the expiry short and the key specific.",
           "**Serve objects through a CDN.** Put a CDN in front of public objects so repeat downloads come from the edge, not the bucket."
         ] }

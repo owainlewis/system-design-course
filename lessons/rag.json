@@ -79,8 +79,8 @@
         {
           "list": [
             "**The name comes from a 2020 paper.** Lewis and others introduced RAG in [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401).",
-            "**Context helps retrieval.** Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) adds a short, chunk-specific context before embedding, and combines it with keyword search and reranking.",
-            "**Position in the prompt matters.** [Lost in the Middle](https://arxiv.org/abs/2307.03172) found that models used information at the start or end of a long input better than in the middle.",
+            "**Context helps retrieval.** Anthropic's [Contextual Retrieval](https://www.anthropic.com/research/contextual-retrieval) adds a short, chunk-specific context before embedding, and combines it with keyword search and reranking.",
+            "**Position in the prompt matters.** [Lost in the Middle](https://arxiv.org/abs/2307.03172) found that models often used information at the start or end of a long input better than information in the middle.",
             "**Show the sources.** Return the documents each answer used, so users can check it, and so you can see which chunks led to a wrong answer."
           ]
         }
@@ -316,7 +316,7 @@
     },
     {
       "label": "Anthropic: Contextual retrieval",
-      "url": "https://www.anthropic.com/news/contextual-retrieval",
+      "url": "https://www.anthropic.com/research/contextual-retrieval",
       "note": "Adding context to chunks, with keyword search and reranking.",
       "type": "engineering"
     },

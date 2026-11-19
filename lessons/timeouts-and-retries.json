@@ -76,8 +76,8 @@
         {
           "list": [
             "**AWS writes this down.** The Amazon Builders' Library article [Timeouts, retries, and backoff with jitter](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/) covers choosing timeouts, retrying at one layer, and adding jitter.",
-            "**Full jitter works well.** Marc Brooker's [Exponential Backoff And Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) compares strategies and finds that a random wait between zero and the backoff cuts total work.",
-            "**gRPC passes deadlines along.** A [gRPC deadline](https://grpc.io/docs/guides/deadlines/) travels with the request, so services further down know how long the caller will still wait.",
+            "**Full jitter works well.** Marc Brooker's [Exponential Backoff And Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) compares backoff strategies and finds that adding jitter cuts the total number of calls substantially.",
+            "**gRPC passes deadlines along.** Some gRPC implementations pass a [deadline](https://grpc.io/docs/guides/deadlines/) on to outgoing calls automatically, so services further down know how long the caller will still wait.",
             "**Cap retries with a budget.** Google's SRE book, in [Addressing Cascading Failures](https://sre.google/sre-book/addressing-cascading-failures/), suggests limiting retries per request and across the whole server, so retries can't grow without bound.",
             "**Respect Retry-After.** A server that returns `429` or `503` can send `Retry-After`, defined in [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3). Clients should wait at least that long."
           ]

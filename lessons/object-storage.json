@@ -1,0 +1,128 @@
+{
+  "slug": "object-storage",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "Object storage",
+  "summary": "Where files belong: buckets of objects behind an HTTP API, uploads that skip your servers, and large files sent in parts.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "Users upload photos, videos and documents. Saving them on an app server's disk breaks as soon as there are two servers, as the stateless services lesson shows. Saving them in the database makes it huge, slow to back up and expensive." },
+        { "p": "Files need a store of their own: one that holds any number of them, keeps them safe, and serves them over the network." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "An **object store** keeps **objects**: a blob of bytes, some metadata, and a key. Objects live in **buckets**. There are no real folders; a key such as `photos/2024/7.jpg` is just a name, though tools show the slashes as folders." },
+        { "p": "You use it over HTTP: `PUT` an object, `GET` it, `DELETE` it. You replace an object whole rather than editing part of it. The store spreads copies across machines and buildings, so you never manage disks." },
+        { "h3": "Uploads that skip your servers" },
+        { "p": "Sending every upload through an app server wastes its bandwidth and workers. Instead, the app server creates a **presigned URL**: a link that allows one specific upload, to one key, for a short time. The browser sends the file straight to the object store." },
+        { "figure": "upload", "caption": "Uploading a photo through the app server, and with a presigned URL. Count how many times the photo's bytes cross the network." },
+        { "h3": "Large files in parts" },
+        { "p": "A multi-gigabyte file sent in one request is slow, and a dropped connection near the end means starting again. A **multipart upload** splits the file into parts, sends them in parallel, and retries only a part that fails. The store joins the parts at the end." },
+        { "figure": "multipart", "caption": "A 1 GB upload in one request and in five parts sent in parallel. One part fails and only that part is sent again." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**S3 is the common reference.** Amazon S3 says it is designed for 99.999999999% durability, and keeps copies across several Availability Zones for most storage classes. See its [data protection page](https://docs.aws.amazon.com/AmazonS3/latest/userguide/DataDurability.html).",
+          "**Reads see the latest write.** S3 gives [strong read-after-write consistency](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html#ConsistencyModel): after a successful PUT, any read returns the new object.",
+          "**Multipart has fixed limits.** S3's [multipart upload page](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html) recommends multipart for large objects and lists the limits on part size and count.",
+          "**Presigned URLs expire.** S3 [presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html) carry the signer's permissions until they expire. Keep the expiry short and the key specific.",
+          "**Serve objects through a CDN.** Put a CDN in front of public objects so repeat downloads come from the edge, not the bucket."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "Object stores keep files as whole objects in buckets, behind a simple HTTP API.",
+          "They handle copies and durability, so you never manage disks.",
+          "Presigned URLs let clients upload and download directly, without passing bytes through your servers.",
+          "Multipart uploads send large files in parallel parts and retry only the parts that fail."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "upload": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        { "id": "browser", "label": "Browser", "short": "Browser", "icon": "browser" },
+        { "id": "app", "label": "App server", "short": "App", "icon": "server" },
+        { "id": "store", "label": "Object store", "short": "Store", "icon": "store" }
+      ],
+      "scenarios": {
+        "through": {
+          "label": "Through the app server",
+          "note": "the photo's bytes cross the network twice",
+          "steps": [
+            { "from": "browser", "to": "app", "label": "POST photo, 8 MB" },
+            { "from": "app", "to": "store", "label": "PUT photos/7.jpg, 8 MB", "set": { "store": "photos/7.jpg" } },
+            { "from": "store", "to": "app", "label": "OK", "kind": "answer" },
+            { "from": "app", "to": "browser", "label": "Uploaded", "kind": "answer" }
+          ]
+        },
+        "presigned": {
+          "label": "Presigned URL",
+          "note": "the photo's bytes cross the network once",
+          "steps": [
+            { "from": "browser", "to": "app", "label": "I want to upload a photo" },
+            { "from": "app", "to": "app", "label": "Sign a PUT URL, 5 minutes" },
+            { "from": "app", "to": "browser", "label": "URL for photos/7.jpg", "kind": "refer" },
+            { "from": "browser", "to": "store", "label": "PUT photos/7.jpg, 8 MB", "set": { "store": "photos/7.jpg" } },
+            { "from": "store", "to": "browser", "label": "OK", "kind": "answer" },
+            { "from": "browser", "to": "app", "label": "Done: photos/7.jpg" }
+          ]
+        }
+      },
+      "counter": { "from": "app", "to": "store", "label": "uploads sent by the app server" }
+    },
+    "multipart": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["net", "uploading"], ["fail", "failed"]],
+      "axis": 110000,
+      "scenarios": {
+        "single": {
+          "label": "One request",
+          "note": "a failure near the end means starting again",
+          "rows": [
+            { "label": "1 GB, one request", "spans": [{ "s": 0, "d": 80000, "tone": "net", "text": "80 s" }, { "s": 80000, "d": 2000, "tone": "fail" }] },
+            { "label": "Start again", "s": 82000, "d": 26000, "tone": "net", "text": "and on…" }
+          ]
+        },
+        "parts": {
+          "label": "Five parts in parallel",
+          "note": "only the failed part is sent again",
+          "rows": [
+            { "label": "Part 1, 200 MB", "s": 0, "d": 30000, "tone": "net" },
+            { "label": "Part 2, 200 MB", "s": 0, "d": 30000, "tone": "net" },
+            { "label": "Part 3, 200 MB", "spans": [{ "s": 0, "d": 18000, "tone": "net" }, { "s": 18000, "d": 1000, "tone": "fail" }, { "s": 19000, "d": 30000, "tone": "net", "text": "retry" }] },
+            { "label": "Part 4, 200 MB", "s": 0, "d": 30000, "tone": "net" },
+            { "label": "Part 5, 200 MB", "s": 0, "d": 30000, "tone": "net" },
+            { "label": "Complete upload", "s": 49000, "d": 1000, "tone": "work" }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "Amazon S3: data protection", "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/DataDurability.html", "note": "Designed durability, and copies across Availability Zones.", "type": "docs" },
+    { "label": "Amazon S3: consistency model", "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html#ConsistencyModel", "note": "Strong read-after-write consistency.", "type": "docs" },
+    { "label": "Amazon S3: multipart upload", "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html", "note": "Uploading large objects in parts, and the limits.", "type": "docs" },
+    { "label": "Amazon S3: presigned URLs", "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html", "note": "Time-limited links for uploads and downloads.", "type": "docs" }
+  ]
+}

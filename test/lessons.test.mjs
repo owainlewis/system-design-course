@@ -14,7 +14,7 @@ const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x)); const lerp = (a,
 const fmt = (n, d = 0) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 ${read('src/sim.js')}
 ${kinds.map(k => read('src/kinds/' + k)).join('\n')}
-globalThis.api = { KINDS, calcRun, tlEnd, tlSpans, caSimulate };
+globalThis.api = { KINDS, calcRun, tlEnd, tlSpans, caSimulate, shSimulate };
 globalThis.lookup = name => eval(name);`, ctx);
 export const api = ctx.api, lookup = ctx.lookup;
 const course = JSON.parse(read('course.json'));
@@ -113,4 +113,22 @@ test('invalidation: delete on write removes stale reads; coalescing turns a stam
   assert.ok(ca(c.stale.scenarios.ttl.scene).stale > 5); assert.equal(ca(c.stale.scenarios.delete.scene).stale, 0);
   const herd = ca(c.stampede.scenarios.herd.scene).db, one = ca(c.stampede.scenarios.one.scene).db;
   assert.ok(herd > 10 * one, `herd ${herd}, coalesced ${one}`);
+});
+
+/* ---------- data ---------- */
+const busiest = scene => { const m = api.shSimulate(scene); return Math.max(...m.counts) / (m.reqs.length / m.N); };
+test('sharding: growing IDs pile onto one shard by range but not by hash; a hot key overloads one shard anyway', () => {
+  const f = lesson('sharding').figures;
+  assert.ok(busiest(f.even.scenarios.range.scene) < 1.5 && busiest(f.even.scenarios.hash.scene) < 1.5);
+  assert.ok(busiest(f.sequential.scenarios.range.scene) > 3.9, 'all on one shard');
+  assert.ok(busiest(f.sequential.scenarios.hash.scene) < 1.5);
+  assert.ok(busiest(f['hot-key'].scene) > 1.8);
+});
+test('consensus: a majority of 5 is 3, and 4 servers tolerate no more failures than 3', () => {
+  const c = lesson('consensus').figures.playground, run = n => api.calcRun(c, { n }).out.map(r => r.v);
+  assert.equal(run(5)[0], 3); assert.equal(run(5)[1], 2); assert.equal(run(4)[1], run(3)[1]);
+});
+test('replication: W + R > N means reads overlap the latest write', () => {
+  const c = lesson('replication').figures.playground;
+  assert.equal(api.calcRun(c, { n: 3, w: 2, r: 2 }).out[1].v, 1); assert.equal(api.calcRun(c, { n: 3, w: 2, r: 1 }).out[1].v, 0);
 });

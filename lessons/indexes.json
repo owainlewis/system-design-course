@@ -1,0 +1,97 @@
+{
+  "slug": "indexes",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "Indexes",
+  "summary": "How a B-tree index finds one row among a billion in a handful of reads, and what every index costs.",
+  "minutes": 8,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "A users table holds rows in the order they were added. To find the user with a given email, the database has no choice but to read every row and compare. That is a **full table scan**." },
+        { "p": "With 1,000 rows, nobody notices. With 100 million rows, every login reads 100 million rows. The query that was instant in testing takes seconds in production." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "p": "An **index** is a separate structure, kept sorted by one or more columns, that points to the rows. Most databases use a **B-tree** by default. It is a tree of fixed-size pages. Each page holds many sorted keys and pointers to the pages below, so the tree is wide and shallow." },
+        { "p": "To find a key, the database reads the root page, picks the child whose range contains the key, and repeats until it reaches a leaf. The leaf points to the row." },
+        { "figure": "lookup", "caption": "Finding one email in a table of 96 rows. The scan reads every row, because another row could match. The index reads one page per level, then the row." },
+        { "h3": "Why it stays shallow" },
+        { "p": "Each page holds hundreds of keys. If each page points to 100 children, three levels cover a million rows and five levels cover more than a billion. Doubling the table adds a fraction of a level." },
+        { "h3": "What an index costs" },
+        { "list": [
+          "**Slower writes.** Every insert, update or delete must also update each index on the table.",
+          "**Space.** An index is a copy of the indexed columns, plus pointers.",
+          "**Only some queries benefit.** An index on `email` helps `WHERE email = ?` and range or prefix queries on email. It doesn't help a query that filters on another column."
+        ] }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**B-tree is the default.** In PostgreSQL, `CREATE INDEX` builds a B-tree unless you ask for another type. The [index types page](https://www.postgresql.org/docs/current/indexes-types.html) lists the operators each type supports.",
+          "**Column order matters in a multicolumn index.** An index on `(country, city)` helps queries on country, or on country and city, but not on city alone. PostgreSQL's [multicolumn index page](https://www.postgresql.org/docs/current/indexes-multicolumn.html) explains why.",
+          "**Check the plan.** `EXPLAIN` shows whether the database will use an index or scan the table. See PostgreSQL's [guide to EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html).",
+          "**Index for your queries.** Add an index for each slow, frequent query, and remove indexes that no query uses."
+        ] }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        { "p": "Change the size of the table and see how the work grows for a scan and for an index with 100 keys per page." },
+        { "figure": "playground", "caption": "Rows a scan reads, against pages an index reads. Go from a thousand rows to a billion." }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "Without an index, finding a row means reading the whole table.",
+          "A B-tree index is a wide, shallow tree of sorted pages.",
+          "Each level multiplies the rows covered by the number of keys per page, so lookups stay short.",
+          "Every index slows writes and uses space, so add the ones your queries need."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "lookup": {
+      "kind": "index",
+      "rows": 96,
+      "target": 77,
+      "still": 0.99,
+      "scenarios": {
+        "scan": { "label": "No index", "mode": "scan" },
+        "tree": { "label": "B-tree index", "mode": "tree" }
+      }
+    },
+    "playground": {
+      "kind": "calc",
+      "controls": [{ "type": "toggle", "key": "rows", "label": "Rows", "options": [[1000, "1 thousand"], [1000000, "1 million"], [100000000, "100 million"], [1000000000, "1 billion"]] }],
+      "ctrl": { "rows": 1000000 },
+      "formats": { "rows": "big" },
+      "rows": [
+        { "key": "scan", "label": "Rows a full scan reads", "expr": "rows", "show": "every row, {rows}", "format": "big" },
+        { "key": "levels", "label": "Levels in the index", "expr": "Math.ceil(Math.log10(rows) / 2 - 1e-9)", "show": "100 keys per page: each level covers 100 times more rows", "format": "d0" },
+        { "key": "pages", "label": "Reads with the index", "expr": "levels + 1", "show": "one page per level, then the row", "format": "d0", "tone": "accent" },
+        { "label": "Times fewer reads", "expr": "scan / pages", "show": "{scan} ÷ {pages}", "format": "big", "tone": "accent" }
+      ],
+      "stat": "real pages often hold several hundred keys, so trees are even shallower"
+    }
+  },
+  "references": [
+    { "label": "PostgreSQL: index types", "url": "https://www.postgresql.org/docs/current/indexes-types.html", "note": "B-tree as the default, and what other index types support.", "type": "docs" },
+    { "label": "PostgreSQL: multicolumn indexes", "url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html", "note": "Why the leading column matters.", "type": "docs" },
+    { "label": "PostgreSQL: using EXPLAIN", "url": "https://www.postgresql.org/docs/current/using-explain.html", "note": "Reading a query plan to see whether an index is used.", "type": "docs" }
+  ]
+}

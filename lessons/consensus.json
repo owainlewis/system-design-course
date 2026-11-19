@@ -1,0 +1,337 @@
+{
+  "slug": "consensus",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "Consensus and Raft",
+  "summary": "How a group of servers agrees on one order of changes, keeps working when some fail, and never ends up with two leaders.",
+  "minutes": 11,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        {
+          "p": "Leader-follower replication needs exactly one leader. When the leader stops answering, the others must pick a new one. But a leader that is slow is hard to tell from one that has failed. If two servers both believe they lead, they accept different writes, and the copies split apart. This is called **split brain**."
+        },
+        {
+          "p": "**Consensus** algorithms solve this. A group of servers agrees on one value, or one order of changes, as long as most of them are working and can talk to each other."
+        }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        {
+          "p": "[Raft](https://raft.github.io/) is a consensus algorithm designed to be easy to understand. Its authors describe it in [In Search of an Understandable Consensus Algorithm](https://www.usenix.org/conference/atc14/technical-sessions/presentation/ongaro). The key idea is the **majority**: with 5 servers, any decision needs 3. Two different majorities of the same group always share at least one server, so two conflicting decisions can't both win."
+        },
+        {
+          "h3": "Replicating a write"
+        },
+        {
+          "p": "Clients send writes to the leader. The leader adds the write to its log and sends it to the others. Once a majority, counting itself, has the entry, the entry is **committed**: it will never be lost or changed. The leader applies it and answers the client."
+        },
+        {
+          "h3": "Electing a leader"
+        },
+        {
+          "p": "The leader sends regular heartbeats. A follower that hears nothing for a random timeout becomes a **candidate**. It starts a new **term**, a number that only grows, and asks the others for their votes. Each server votes once per term. A candidate with votes from a majority becomes leader."
+        },
+        {
+          "p": "A server only votes for a candidate whose log is at least as up to date as its own. So a new leader always has every committed entry."
+        },
+        {
+          "figure": "raft",
+          "caption": "Five servers. A write is committed once three have it, even with one server down. Then the leader fails, and server 3 wins an election in term 3."
+        },
+        {
+          "h3": "Why an odd number"
+        },
+        {
+          "p": "A cluster of 2F + 1 servers survives F failures. Three servers survive one failure, five survive two. A fourth server adds no tolerance over three: a majority of 4 is 3, so it still survives only one failure, and it adds one more machine that can fail."
+        }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        {
+          "list": [
+            "**etcd uses Raft.** etcd stores Kubernetes' cluster state. Its [FAQ](https://etcd.io/docs/v3.5/faq/) recommends an odd number of members and explains the failure tolerance of each size.",
+            "**Many databases run Raft per shard.** Systems such as CockroachDB and TiKV run a separate Raft group for each range of keys, so the work spreads across machines.",
+            "**Paxos came first.** Leslie Lamport's Paxos solves the same problem. His [Paxos Made Simple](https://lamport.azurewebsites.net/pubs/paxos-simple.pdf) explains it in a few pages. Raft was designed to be easier to implement correctly.",
+            "**Consensus costs latency.** Every committed write waits for a majority. Spread servers across regions and every write pays a cross-region round trip. Keep consensus groups small, and close together where you can."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "try-it",
+      "heading": "Try it",
+      "blocks": [
+        {
+          "p": "Change the cluster size and see how many servers a decision needs and how many can fail."
+        },
+        {
+          "figure": "playground",
+          "caption": "Majority and failure tolerance by cluster size. Compare 3 servers with 4."
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        {
+          "list": [
+            "Consensus lets a group agree on one order of changes despite failures.",
+            "Raft commits an entry once a majority has it, and elects leaders by majority vote in numbered terms.",
+            "Any two majorities overlap, which rules out two leaders in one term and lost commits.",
+            "2F + 1 servers survive F failures, so clusters have an odd size."
+          ]
+        }
+      ]
+    }
+  ],
+  "figures": {
+    "raft": {
+      "kind": "flow",
+      "still": 0.97,
+      "actors": [
+        {
+          "id": "client",
+          "label": "Client",
+          "short": "Client",
+          "icon": "browser"
+        },
+        {
+          "id": "s1",
+          "label": "Server 1",
+          "short": "S1",
+          "icon": "store"
+        },
+        {
+          "id": "s2",
+          "label": "Server 2",
+          "short": "S2",
+          "icon": "store"
+        },
+        {
+          "id": "s3",
+          "label": "Server 3",
+          "short": "S3",
+          "icon": "store"
+        },
+        {
+          "id": "s4",
+          "label": "Server 4",
+          "short": "S4",
+          "icon": "store"
+        },
+        {
+          "id": "s5",
+          "label": "Server 5",
+          "short": "S5",
+          "icon": "store"
+        }
+      ],
+      "scenarios": {
+        "write": {
+          "label": "Replicate a write",
+          "note": "committed with 3 of 5, while server 5 is down",
+          "state": {
+            "s1": "leader, term 2",
+            "s5": "down"
+          },
+          "steps": [
+            {
+              "from": "client",
+              "to": "s1",
+              "label": "SET x = 5"
+            },
+            {
+              "from": "s1",
+              "to": "s1",
+              "label": "Append to log"
+            },
+            {
+              "from": "s1",
+              "to": "s2",
+              "label": "Append x = 5"
+            },
+            {
+              "from": "s1",
+              "to": "s3",
+              "label": "Append x = 5"
+            },
+            {
+              "from": "s1",
+              "to": "s4",
+              "label": "Append x = 5"
+            },
+            {
+              "from": "s1",
+              "to": "s5",
+              "label": "Append x = 5",
+              "kind": "lost"
+            },
+            {
+              "from": "s2",
+              "to": "s1",
+              "label": "Have it",
+              "kind": "refer"
+            },
+            {
+              "from": "s3",
+              "to": "s1",
+              "label": "Have it",
+              "kind": "refer"
+            },
+            {
+              "from": "s1",
+              "to": "s1",
+              "label": "3 of 5 have it: committed",
+              "set": {
+                "s1": "leader, x = 5 committed"
+              }
+            },
+            {
+              "from": "s1",
+              "to": "client",
+              "label": "OK",
+              "kind": "answer"
+            }
+          ]
+        },
+        "elect": {
+          "label": "Elect a new leader",
+          "note": "server 3 wins with 3 votes of 5",
+          "state": {
+            "s1": "leader, term 2",
+            "s5": "down"
+          },
+          "steps": [
+            {
+              "from": "s1",
+              "to": "s1",
+              "label": "Leader fails",
+              "kind": "fail",
+              "set": {
+                "s1": "down"
+              }
+            },
+            {
+              "from": "s3",
+              "to": "s3",
+              "label": "No heartbeat: candidate",
+              "set": {
+                "s3": "candidate, term 3"
+              }
+            },
+            {
+              "from": "s3",
+              "to": "s2",
+              "label": "Vote for me, term 3"
+            },
+            {
+              "from": "s3",
+              "to": "s4",
+              "label": "Vote for me, term 3"
+            },
+            {
+              "from": "s2",
+              "to": "s3",
+              "label": "Yes",
+              "kind": "refer"
+            },
+            {
+              "from": "s4",
+              "to": "s3",
+              "label": "Yes",
+              "kind": "refer"
+            },
+            {
+              "from": "s3",
+              "to": "s3",
+              "label": "3 votes with its own: leader",
+              "set": {
+                "s3": "leader, term 3"
+              }
+            },
+            {
+              "from": "s3",
+              "to": "s2",
+              "label": "Heartbeat, term 3",
+              "kind": "answer"
+            }
+          ]
+        }
+      }
+    },
+    "playground": {
+      "kind": "calc",
+      "controls": [
+        {
+          "type": "range",
+          "key": "n",
+          "label": "Servers",
+          "min": 1,
+          "max": 9
+        }
+      ],
+      "ctrl": {
+        "n": 5
+      },
+      "rows": [
+        {
+          "key": "maj",
+          "label": "Majority: servers a decision needs",
+          "expr": "Math.floor(n / 2) + 1",
+          "show": "more than half of {n}",
+          "format": "d0",
+          "tone": "accent"
+        },
+        {
+          "label": "Servers that can fail",
+          "expr": "n - (Math.floor(n / 2) + 1)",
+          "show": "{n} − {maj}",
+          "format": "d0",
+          "tone": "accent"
+        },
+        {
+          "label": "Messages per write from the leader",
+          "expr": "n - 1",
+          "show": "one to every other server",
+          "format": "d0"
+        }
+      ]
+    }
+  },
+  "references": [
+    {
+      "label": "Ongaro and Ousterhout: In search of an understandable consensus algorithm (USENIX ATC 2014)",
+      "url": "https://www.usenix.org/conference/atc14/technical-sessions/presentation/ongaro",
+      "note": "The Raft paper: elections, terms, log replication and safety.",
+      "type": "paper"
+    },
+    {
+      "label": "The Raft consensus algorithm",
+      "url": "https://raft.github.io/",
+      "note": "Raft's site, with an interactive visualisation and a list of implementations.",
+      "type": "official"
+    },
+    {
+      "label": "etcd FAQ",
+      "url": "https://etcd.io/docs/v3.5/faq/",
+      "note": "Why clusters have an odd number of members, and the tolerance of each size.",
+      "type": "docs"
+    },
+    {
+      "label": "Leslie Lamport: Paxos made simple (2001)",
+      "url": "https://lamport.azurewebsites.net/pubs/paxos-simple.pdf",
+      "note": "The earlier consensus algorithm, explained briefly.",
+      "type": "paper"
+    }
+  ]
+}

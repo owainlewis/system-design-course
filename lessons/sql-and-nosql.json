@@ -1,0 +1,119 @@
+{
+  "slug": "sql-and-nosql",
+  "course": "System Design, Visually",
+  "part": "Data",
+  "title": "SQL and NoSQL",
+  "summary": "Relational databases and the main kinds of NoSQL store, what each is good at, and how to choose between them.",
+  "minutes": 9,
+  "sections": [
+    {
+      "id": "problem",
+      "heading": "The problem",
+      "blocks": [
+        { "p": "Almost every system needs a database, and there are many kinds. Relational databases have been the default for decades. NoSQL stores promise easier scaling or a better fit for some shapes of data." },
+        { "p": "The choice shapes everything after it: how you model data, which queries are cheap, and how you scale. Choosing well starts with how your data will be read." }
+      ]
+    },
+    {
+      "id": "how-it-works",
+      "heading": "How it works",
+      "blocks": [
+        { "h3": "Relational databases" },
+        { "p": "A relational database stores data in tables of rows and columns, with a fixed schema. Related data lives in separate tables and is linked by keys. A query in SQL can **join** tables, filter, sort and group, all in the database. The model comes from [Edgar Codd's 1970 paper](https://doi.org/10.1145/362384.362685)." },
+        { "p": "Relational databases also offer **transactions**: a group of changes that happens completely or not at all. The transactions lesson covers this." },
+        { "h3": "NoSQL stores" },
+        { "p": "NoSQL is a loose name for databases that are not relational. The main kinds:" },
+        { "list": [
+          "**Key-value.** Get and put a value by its key, and little else. Very fast, very simple.",
+          "**Document.** Each record is a document, such as JSON, that can hold nested data. Data that is read together is stored together.",
+          "**Wide-column.** Rows grouped by a partition key and sorted within it, spread over many machines. Built for very large write volumes.",
+          "**Graph.** Nodes and the relationships between them, for queries that follow many links."
+        ] },
+        { "h3": "Reading an order page" },
+        { "p": "An order page needs the order, its line items and each item's product. Here are three ways to read it. The first is a common mistake: one query for the order, then a query per item from the app. The second joins the tables in one query. The third stores the whole order as one document." },
+        { "figure": "order-page", "caption": "Reading one order with three items, with a 1 ms round trip to the database. Count the round trips in each version." },
+        { "p": "The document is fastest for this page because it was designed for this page. Ask a different question, such as total sales per product, and the relational version answers with one query while the document store has to read every order." }
+      ]
+    },
+    {
+      "id": "compare",
+      "heading": "Choosing",
+      "blocks": [
+        { "table": {
+          "head": ["", "Relational", "Document", "Key-value"],
+          "rows": [
+            ["Schema", "Fixed, enforced by the database", "Flexible, per document", "None: the value is opaque"],
+            ["Queries", "Any, with joins", "By key and indexed fields", "By key only"],
+            ["Design starts from", "The data", "The access patterns", "The access patterns"],
+            ["Transactions", "Across tables", "Often per document; some support more", "Usually per key"]
+          ]
+        } },
+        { "p": "Start with a relational database unless you have a reason not to. It answers questions you didn't plan for. Move a specific workload to a NoSQL store when you know its access pattern and need that store's scale or speed." }
+      ]
+    },
+    {
+      "id": "in-practice",
+      "heading": "In practice",
+      "blocks": [
+        { "list": [
+          "**The lines have blurred.** PostgreSQL stores and indexes JSON documents in its [jsonb type](https://www.postgresql.org/docs/current/datatype-json.html). Several document stores now support multi-document transactions.",
+          "**DynamoDB starts from access patterns.** Amazon's [NoSQL design guide](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-general-nosql-design.html) says to list your application's access patterns before designing the table, the reverse of relational design.",
+          "**MongoDB favours embedding.** Its [data modeling guide](https://www.mongodb.com/docs/manual/data-modeling/) recommends storing data that is accessed together in the same document.",
+          "**Watch for query-per-item loops.** The first version in the figure is common in code that uses an ORM. Check how many queries a page sends, not only how long each takes."
+        ] }
+      ]
+    },
+    {
+      "id": "summary",
+      "heading": "Summary",
+      "blocks": [
+        { "list": [
+          "Relational databases store tables with a fixed schema and answer any query with joins.",
+          "NoSQL stores trade query flexibility for a data model that fits known access patterns.",
+          "Document stores keep data that is read together in one place.",
+          "Default to relational, and choose NoSQL for a known access pattern that needs it."
+        ] }
+      ]
+    }
+  ],
+  "figures": {
+    "order-page": {
+      "kind": "timeline",
+      "unit": "ms",
+      "still": 0.99,
+      "legend": [["net", "round trip"], ["work", "database work"]],
+      "scenarios": {
+        "loop": {
+          "label": "One query per item",
+          "note": "4 round trips",
+          "rows": [
+            { "label": "SELECT order 42", "spans": [{ "s": 0, "d": 1, "tone": "net" }, { "s": 1, "d": 0.3, "tone": "work" }] },
+            { "label": "SELECT item 1 + product", "spans": [{ "s": 1.3, "d": 1, "tone": "net" }, { "s": 2.3, "d": 0.3, "tone": "work" }] },
+            { "label": "SELECT item 2 + product", "spans": [{ "s": 2.6, "d": 1, "tone": "net" }, { "s": 3.6, "d": 0.3, "tone": "work" }] },
+            { "label": "SELECT item 3 + product", "spans": [{ "s": 3.9, "d": 1, "tone": "net" }, { "s": 4.9, "d": 0.3, "tone": "work" }] }
+          ]
+        },
+        "join": {
+          "label": "One query with a join",
+          "note": "1 round trip; the database joins three tables",
+          "rows": [
+            { "label": "SELECT ... JOIN items JOIN products", "spans": [{ "s": 0, "d": 1, "tone": "net" }, { "s": 1, "d": 0.6, "tone": "work" }] }
+          ]
+        },
+        "doc": {
+          "label": "One document",
+          "note": "1 round trip; the order is stored as one document",
+          "rows": [
+            { "label": "GET order 42", "spans": [{ "s": 0, "d": 1, "tone": "net" }, { "s": 1, "d": 0.2, "tone": "work" }] }
+          ]
+        }
+      }
+    }
+  },
+  "references": [
+    { "label": "E. F. Codd: A relational model of data for large shared data banks (1970)", "url": "https://doi.org/10.1145/362384.362685", "note": "The paper that introduced the relational model.", "type": "paper" },
+    { "label": "PostgreSQL: JSON types", "url": "https://www.postgresql.org/docs/current/datatype-json.html", "note": "Storing and indexing documents in a relational database.", "type": "docs" },
+    { "label": "Amazon DynamoDB: NoSQL design", "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-general-nosql-design.html", "note": "Designing a table from its access patterns.", "type": "docs" },
+    { "label": "MongoDB: data modeling", "url": "https://www.mongodb.com/docs/manual/data-modeling/", "note": "Embedding data that is accessed together.", "type": "docs" }
+  ]
+}

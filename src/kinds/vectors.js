@@ -52,7 +52,7 @@ KINDS.vectors = {
       const checked = p.at != null && now >= p.at, flash = checked && now - p.at < .25;
       dot(ctx, X(p.x), Y(p.y), flash ? 4.5 : 3, rgba(COL['s' + p.c], checked ? .95 : .4));
     }
-    s.clusters.forEach(c => { const above = Y(c.y) - R * Sy - 9; text(ctx, c.label, X(c.x), above > 10 ? above : Y(c.y) + R * Sy + 12, { align: 'center', size: 11.5, weight: 500, color: COL.ink2 }); });
+    s.clusters.forEach(c => { const above = Y(c.y) - R * Sy - 9; text(ctx, c.label, X(c.x), above > 10 && c.y < .5 ? above : Y(c.y) + R * Sy + 12, { align: 'center', size: 11.5, weight: 500, color: COL.ink2 }); });
     // results: best found so far while scanning, final when done
     const seen = sim.scan.filter(p => now >= p.at), best = [...seen].sort((a, b) => a.d - b.d).slice(0, s.k);
     const Q = { x: X(s.query.x), y: Y(s.query.y) };

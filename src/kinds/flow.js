@@ -39,7 +39,7 @@ KINDS.flow = {
       ctx.save(); ctx.strokeStyle = COL.hair2; ctx.setLineDash([2, 4]); line(ctx, { x, y: 62 }, { x, y: h - 16 }); ctx.restore();
       node(ctx, x, 30, a.icon || 'server', null, null, { stroke: busy ? COL.ink2 : null });
       text(ctx, narrow ? (a.short || a.label) : a.label, x, 66, { align: 'center', size: narrow ? 11 : 12, color: COL.ink2 });
-      if (state[a.id]) { const s = narrow ? state[a.id].replace(/^cached: /, '') : state[a.id]; fitText(ctx, s, x, 82, colW - 8, { align: 'center', size: narrow ? 10 : 11, font: MONO, color: COL.accent }); }
+      if (state[a.id]) { const s = narrow ? state[a.id].replace(/^cached: /, '') : state[a.id]; fitText(ctx, s, x, 82, Math.min(colW - 8, 2 * Math.min(x, w - x) - 6), { align: 'center', size: narrow ? 10 : 11, font: MONO, color: COL.accent }); }
     });
 
     // messages

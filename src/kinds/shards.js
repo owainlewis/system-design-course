@@ -38,9 +38,9 @@ KINDS.shards = {
   draw(f, wantStats) {
     const s = shScene(f), sim = shSimulate(s), now = f.t, N = sim.N;
     const portrait = (f.cv.parentElement.clientWidth || 600) < 600;
-    const { ctx, w, h } = fitCanvas(f.cv, ww => ww < 600 ? 160 + N * 54 : Math.max(330, 96 + N * 64));
+    const { ctx, w, h } = fitCanvas(f.cv, ww => ww < 600 ? 170 + N * 70 : Math.max(330, 96 + N * 64));
     const R = portrait ? { x: w / 2, y: 34 } : { x: Math.max(70, w * .14), y: h / 2 };
-    const S = Array.from({ length: N }, (_, i) => portrait ? { x: 70, y: 130 + i * 54 } : { x: w * .46, y: lerp(52, h - 64, N === 1 ? .5 : i / (N - 1)) });
+    const S = Array.from({ length: N }, (_, i) => portrait ? { x: 70, y: 130 + i * 70 } : { x: w * .46, y: lerp(52, h - 64, N === 1 ? .5 : i / (N - 1)) });
     const barX = portrait ? 120 : w * .46 + 70, barW = w - barX - (portrait ? 56 : 90);
     ctx.strokeStyle = COL.hair2; S.forEach(p => strokeBez(ctx, R, p, portrait));
     node(ctx, R.x, R.y, 'balancer', 'Router', s.by === 'range' ? 'by key range' : 'by hash of key');

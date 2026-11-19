@@ -148,7 +148,7 @@ KINDS.cache = {
     ctx.strokeStyle = COL.hair2; line(ctx, { x: chart.x, y: chart.y + chart.h + .5 }, { x: chart.x + chart.w, y: chart.y + chart.h + .5 });
     const X = t => chart.x + t / sim.P * chart.w, Y = v => chart.y + chart.h - v / ymax * chart.h;
     for (const q of done) dot(ctx, X(q.done), Y(q.latency), 2, q.stale ? COL.amber : q.hit ? COL.accent : COL.ink2);
-    text(ctx, 'response time: blue from the cache, grey from the database' + (s.writes ? ', amber stale' : ''), chart.x, chart.y - 12, { size: 10.5, font: MONO });
+    text(ctx, w < 600 ? 'response time: blue cache, grey database' + (s.writes ? ', amber stale' : '') : 'response time: blue from the cache, grey from the database' + (s.writes ? ', amber stale' : ''), chart.x, chart.y - 12, { size: 10.5, font: MONO });
     ctx.strokeStyle = rgba(COL.ink, .35); line(ctx, { x: X(now), y: chart.y - 2 }, { x: X(now), y: chart.y + chart.h + 2 });
     for (let t = 0; t <= sim.P; t += sim.P > 8 ? 2 : 1) text(ctx, t + 's', X(t), chart.y + chart.h + 12, { align: 'center', size: 10.5, font: MONO });
 

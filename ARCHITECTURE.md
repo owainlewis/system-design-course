@@ -11,9 +11,19 @@ src/page.css           all styles, light and dark
 src/app.js             builds the page from the lesson JSON, the sidebar, controls, the animation loop,
                        drawing helpers, and the rate limiter figure kind
 src/sim.js             the rate limiter simulation
-src/kinds/flow.js      sequence diagrams (DNS lookups, handshakes)
-src/kinds/lb.js        load balancer simulation and drawing
-src/kinds/ring.js      hash mod N and consistent hashing
+src/kinds/             one file per figure kind, loaded on every page in alphabetical order:
+  bars.js              horizontal bars, log or linear (latency numbers, percentiles, nines)
+  cache.js             cache simulation: hit ratio, eviction policies, TTLs, stale reads, stampedes
+  calc.js              worked estimates: sliders in, formulas with the numbers filled in out
+  flow.js              sequence diagrams (lookups, handshakes, retries, protocols)
+  index.js             full table scan against a B-tree lookup
+  lb.js                load balancer simulation: algorithms, slow servers, health checks
+  queue.js             producer, bounded or unbounded queue, consumers: bursts, backpressure, shedding
+  ring.js              hash mod N and consistent hashing
+  shards.js            writes split by key range or hash, with growing or hot keys
+  timeline.js          waterfalls of spans over time (request paths, traces, retries)
+  topic.js             a broker handing out messages: queue, pub/sub, or a partitioned log
+  vectors.js           nearest-neighbour search in 2D: exact against IVF clusters
 src/fonts/             self-hosted IBM Plex Sans, IBM Plex Mono, Source Serif 4 (OFL)
 scripts/build.mjs      writes dist/<slug>/index.html for every lesson file, plus _redirects and _headers
 scripts/check.mjs      content rules from docs/style-guide.md; the build fails on a broken rule
@@ -27,6 +37,8 @@ Each figure in a lesson has a `kind` (default `ratelimit`). A kind registers its
 of the figure's clock `f.t`, so a figure can be paused, replayed or shown as a still.
 
 Simulations are deterministic (seeded random numbers), so tests and the page see the same numbers.
+
+A lesson in `course.json` with no `lessons/<slug>.json` file shows as "Soon" in the sidebar.
 
 ## Adding a lesson
 

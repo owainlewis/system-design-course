@@ -44,7 +44,9 @@ for (const f of ['page.css', ...scripts]) cpSync(root + 'src/' + f, out + 'asset
 cpSync(root + 'src/fonts', out + 'assets/fonts', { recursive: true });
 
 for (const l of lessons) {
-  const html = page({ title: `${l.title} · ${course.title}`, summary: l.summary, path: `${l.slug}/`, body, lesson: l, scripts: true });
+  // The title, heading and summary are in the HTML, so the page makes sense before the script runs.
+  const lessonBody = body.replace('<h1 id="title"></h1>', `<h1 id="title">${esc(l.title)}</h1>`).replace('<p class="dek col" id="dek"></p>', `<p class="dek col" id="dek">${esc(l.summary)}</p>`);
+  const html = page({ title: l.title, summary: l.summary, path: `${l.slug}/`, body: lessonBody, lesson: l, scripts: true });
   if (flat) writeFileSync(out + `${l.slug}.html`, html);
   else { mkdirSync(out + l.slug, { recursive: true }); writeFileSync(out + `${l.slug}/index.html`, html); }
 }
@@ -52,7 +54,7 @@ for (const l of lessons) {
 // Course home page: every part and lesson, with finished lessons linked.
 let n = 0;
 const total = course.parts.reduce((a, p) => a + p.lessons.length, 0);
-const homeBody = `<header class="bar"><a class="brand" href="${flat ? 'index.html' : '/'}">${esc(course.title)}<span>${total} lessons</span></a><span class="sp"></span><a class="sub" href="https://www.skool.com/aiengineer">Learn AI Engineering</a></header>
+const homeBody = `<header class="bar"><a class="brand" href="${flat ? 'index.html' : '/'}">${esc(course.title)}<span>${lessons.length} lessons, ${total - lessons.length} coming</span></a><span class="sp"></span><a class="sub" href="https://www.skool.com/aiengineer">Learn AI Engineering</a></header>
 <main class="home">
   <h1>${esc(course.title)}</h1>
   <p class="dek">A free course on how large systems work. Each lesson explains one idea in plain words, with diagrams you can run and change.</p>

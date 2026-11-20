@@ -10,7 +10,7 @@
       "id": "problem",
       "heading": "The problem",
       "blocks": [
-        { "p": "A users table holds rows in the order they were added. To find the user with a given email, the database has no choice but to read every row and compare. That is a **full table scan**." },
+        { "p": "A users table stores rows in no order that helps a search by email. To find the user with a given email, the database has no choice but to read every row and compare. That is a **full table scan**." },
         { "p": "With 1,000 rows, nobody notices. With 100 million rows, every login reads 100 million rows. The query that was instant in testing takes seconds in production." }
       ]
     },
@@ -37,7 +37,7 @@
       "blocks": [
         { "list": [
           "**B-tree is the default.** In PostgreSQL, `CREATE INDEX` builds a B-tree unless you ask for another type. The [index types page](https://www.postgresql.org/docs/current/indexes-types.html) lists the operators each type supports.",
-          "**Column order matters in a multicolumn index.** An index on `(country, city)` helps queries on country, or on country and city, but not on city alone. PostgreSQL's [multicolumn index page](https://www.postgresql.org/docs/current/indexes-multicolumn.html) explains why.",
+          "**Column order matters in a multicolumn index.** An index on `(country, city)` works best for queries on country, or on country and city. A query on city alone can't jump straight to its rows. Since version 18, PostgreSQL can sometimes use the index anyway with a skip scan, which works well when there are few distinct countries. PostgreSQL's [multicolumn index page](https://www.postgresql.org/docs/current/indexes-multicolumn.html) explains both.",
           "**Check the plan.** `EXPLAIN` shows whether the database will use an index or scan the table. See PostgreSQL's [guide to EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html).",
           "**Index for your queries.** Add an index for each slow, frequent query, and remove indexes that no query uses."
         ] }
@@ -47,8 +47,8 @@
       "id": "try-it",
       "heading": "Try it",
       "blocks": [
-        { "p": "Change the size of the table and see how the work grows for a scan and for an index with 100 keys per page." },
-        { "figure": "playground", "caption": "Rows a scan reads, against pages an index reads. Go from a thousand rows to a billion." }
+        { "p": "Change the size of the table and see how the page reads grow for a scan and for an index with 100 keys per page. Both sides assume 100 rows or keys fit in one page." },
+        { "figure": "playground", "caption": "Pages a scan reads, against pages an index lookup reads. Go from a thousand rows to a billion." }
       ]
     },
     {
@@ -77,14 +77,68 @@
     },
     "playground": {
       "kind": "calc",
-      "controls": [{ "type": "toggle", "key": "rows", "label": "Rows", "options": [[1000, "1 thousand"], [1000000, "1 million"], [100000000, "100 million"], [1000000000, "1 billion"]] }],
-      "ctrl": { "rows": 1000000 },
-      "formats": { "rows": "big" },
+      "controls": [
+        {
+          "type": "toggle",
+          "key": "rows",
+          "label": "Rows",
+          "options": [
+            [
+              1000,
+              "1 thousand"
+            ],
+            [
+              1000000,
+              "1 million"
+            ],
+            [
+              100000000,
+              "100 million"
+            ],
+            [
+              1000000000,
+              "1 billion"
+            ]
+          ]
+        }
+      ],
+      "ctrl": {
+        "rows": 1000000
+      },
+      "formats": {
+        "rows": "big",
+        "scan": "big"
+      },
       "rows": [
-        { "key": "scan", "label": "Rows a full scan reads", "expr": "rows", "show": "every row, {rows}", "format": "big" },
-        { "key": "levels", "label": "Levels in the index", "expr": "Math.ceil(Math.log10(rows) / 2 - 1e-9)", "show": "100 keys per page: each level covers 100 times more rows", "format": "d0" },
-        { "key": "pages", "label": "Reads with the index", "expr": "levels + 1", "show": "one page per level, then the row", "format": "d0", "tone": "accent" },
-        { "label": "Times fewer reads", "expr": "scan / pages", "show": "{scan} ÷ {pages}", "format": "big", "tone": "accent" }
+        {
+          "key": "scan",
+          "label": "Pages a full scan reads",
+          "expr": "Math.ceil(rows / 100)",
+          "show": "{rows} rows, 100 rows per page",
+          "format": "big"
+        },
+        {
+          "key": "levels",
+          "label": "Levels in the index",
+          "expr": "Math.ceil(Math.log10(rows) / 2 - 1e-9)",
+          "show": "100 keys per page: each level covers 100 times more rows",
+          "format": "d0"
+        },
+        {
+          "key": "pages",
+          "label": "Pages the index lookup reads",
+          "expr": "levels + 1",
+          "show": "one page per level, then the table page with the row",
+          "format": "d0",
+          "tone": "accent"
+        },
+        {
+          "label": "Times fewer page reads",
+          "expr": "scan / pages",
+          "show": "{scan} ÷ {pages}",
+          "format": "big",
+          "tone": "accent"
+        }
       ],
       "stat": "real pages often hold several hundred keys, so trees are even shallower"
     }

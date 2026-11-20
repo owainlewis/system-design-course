@@ -20,7 +20,7 @@
       "blocks": [
         { "p": "A **content delivery network**, or CDN, runs servers in many cities. These **edge servers** sit between users and your servers, which the CDN calls the **origin**. Each edge keeps copies of responses and answers repeat requests itself." },
         { "h3": "Reaching the nearest edge" },
-        { "p": "The CDN has to send each user to a nearby edge. One way is DNS: the CDN's DNS servers answer with the address of an edge near the user. Another is **anycast**, where many edges announce the same IP address and the internet's routing delivers each packet to the nearest one, as [Cloudflare explains](https://www.cloudflare.com/learning/cdn/glossary/anycast-network/)." },
+        { "p": "The CDN has to send each user to a nearby edge. One way is DNS: the CDN's DNS servers answer with the address of an edge near the user. Another is **anycast**, where many edges announce the same IP address and the internet's routing delivers each packet to one of them, usually a nearby one but not always the closest, as [Cloudflare explains](https://www.cloudflare.com/learning/cdn/glossary/anycast-network/)." },
         { "h3": "Hits and misses" },
         { "p": "When the edge has a fresh copy, it answers at once. That is a **cache hit**. When it doesn't, it fetches the response from the origin, sends it on, and keeps a copy. That is a **cache miss**." },
         { "figure": "hit-miss", "caption": "A user in Sydney requests an image twice. The first request goes all the way to the origin. The second is answered by the edge in Sydney." },
@@ -127,6 +127,6 @@
     { "label": "RFC 9111: HTTP caching", "url": "https://www.rfc-editor.org/rfc/rfc9111", "note": "Cache-Control, freshness, shared caches and revalidation.", "type": "standard" },
     { "label": "RFC 5861: HTTP Cache-Control extensions for stale content", "url": "https://www.rfc-editor.org/rfc/rfc5861", "note": "stale-while-revalidate and stale-if-error.", "type": "standard" },
     { "label": "Amazon CloudFront: invalidating files", "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html", "note": "Removing cached copies before they expire.", "type": "docs" },
-    { "label": "Cloudflare: what is an anycast network?", "url": "https://www.cloudflare.com/learning/cdn/glossary/anycast-network/", "note": "Many servers sharing one IP address, with routing picking the nearest.", "type": "docs" }
+    { "label": "Cloudflare: what is an anycast network?", "url": "https://www.cloudflare.com/learning/cdn/glossary/anycast-network/", "note": "Many servers sharing one IP address, with routing picking which one answers.", "type": "docs" }
   ]
 }

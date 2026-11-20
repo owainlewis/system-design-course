@@ -54,7 +54,7 @@
           "caption": "Creating a link, and following it."
         },
         {
-          "p": "`301 Moved Permanently` lets browsers cache the redirect, so repeat clicks never reach you. That saves load but loses click counts, and you can never change where the link points. `302 Found` sends every click through the service. With click counts as a requirement, use 302."
+          "p": "`301 Moved Permanently` lets browsers cache the redirect, so repeat clicks never reach you. That saves load but loses click counts, and you can never change where the link points. `302 Found` is not cached by default, but browsers and proxies may still cache it if the response allows. With click counts as a requirement, use 302 and send `Cache-Control: no-store` so every click comes back to the service."
         }
       ]
     },
@@ -106,7 +106,7 @@
         },
         {
           "figure": "redirect",
-          "caption": "Creating a link, then two redirects. A cached key answers without touching the database. A miss reads the database and fills the cache. Each click is logged without waiting."
+          "caption": "Creating a link, then two redirects. A cached key answers without touching the database. A miss reads the database and fills the cache. Each click is logged after the redirect is sent, so a crash in between loses that click."
         },
         {
           "figure": "cache",
@@ -122,7 +122,7 @@
       "heading": "Counting clicks",
       "blocks": [
         {
-          "p": "Updating a counter row on every click would turn each redirect into a write, and a viral link into a hot row. Instead, the service appends a click event to an event log and returns the redirect straight away."
+          "p": "Updating a counter row on every click would turn each redirect into a write, and a viral link into a hot row. Instead, the service appends a click event to an event log. That leaves a choice. Waiting for the log to confirm the event before sending the redirect counts every click, but adds a few milliseconds to each redirect and fails the redirect when the log is down. Sending the redirect first is faster, but a crash between the two loses that click. This design sends the redirect first and treats click counts as close, not exact."
         },
         {
           "p": "A separate consumer reads the log, counts clicks per key per minute, and writes the totals in batches. Counts lag by a few seconds, which is fine for a dashboard, and the redirect path never waits on them."
@@ -137,8 +137,8 @@
           "list": [
             "Estimates show a write load one database handles, and a read load and row count that need a cache and sharding.",
             "Keys are 7 random base62 characters, made unique by the database's key constraint.",
-            "Redirects use 302 so every click is counted, and a cache answers most of them.",
-            "Clicks go to an event log and are counted in batches, off the redirect path."
+            "Redirects use 302 with `Cache-Control: no-store` so clicks come back to the service, and a cache answers most of them.",
+            "Clicks go to an event log and are counted in batches. Logging after the redirect is fast but can lose a click in a crash."
           ]
         }
       ]

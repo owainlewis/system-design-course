@@ -91,7 +91,7 @@
           "list": [
             "With `hash mod N`, changing the number of servers moves most keys.",
             "Consistent hashing puts servers and keys on a ring. Each key goes to the next server clockwise.",
-            "Adding or removing a server moves only the keys next to it, about 1 in N + 1.",
+            "Adding a server to N moves only the keys next to it, about 1 in N + 1. Removing one of N moves about 1 in N.",
             "Virtual nodes give each server many positions, which evens out the load."
           ]
         }

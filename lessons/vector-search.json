@@ -29,7 +29,7 @@
           "p": "An **embedding model** turns a piece of text into a **vector**: a list of numbers, often several hundred to a few thousand long. The model is trained so that texts with similar meaning get vectors that point in similar directions."
         },
         {
-          "p": "To search, embed every document once and store the vectors. At query time, embed the query and find the stored vectors closest to it. Closeness is usually measured by **cosine similarity**, the angle between two vectors, or by straight-line distance."
+          "p": "To search, embed every document once and store the vectors. At query time, embed the query and find the stored vectors closest to it. Closeness is usually measured by **cosine similarity**, the cosine of the angle between two vectors, or by straight-line distance."
         },
         {
           "p": "The figures here draw vectors in two dimensions so you can see them. Real ones have hundreds of dimensions, but the idea is the same."

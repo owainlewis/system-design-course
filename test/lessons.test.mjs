@@ -140,6 +140,10 @@ test('consensus: a majority of 5 is 3, and 4 servers tolerate no more failures t
   const c = lesson('consensus').figures.playground, run = n => api.calcRun(c, { n }).out.map(r => r.v);
   assert.equal(run(5)[0], 3); assert.equal(run(5)[1], 2); assert.equal(run(4)[1], run(3)[1]);
 });
+test('replication: W and R are capped at N', () => {
+  const c = lesson('replication').figures.playground;
+  for (const k of ['w', 'r']) assert.equal(c.controls.find(x => x.key === k).maxFrom, 'n');
+});
 test('replication: W + R > N means reads overlap the latest write', () => {
   const c = lesson('replication').figures.playground;
   assert.equal(api.calcRun(c, { n: 3, w: 2, r: 2 }).out[1].v, 1); assert.equal(api.calcRun(c, { n: 3, w: 2, r: 1 }).out[1].v, 0);
@@ -211,9 +215,28 @@ test('vector search: IVF with 1 cluster misses a neighbour in Billing; 2 cluster
   const missed = one.truth.filter(p => !one.found.includes(p)); assert.equal(sc.ivf1.scene.clusters[missed[0].c].label, 'Billing');
   assert.equal(two.recall, 5);
 });
-test('evals: 50 cases at 80% gives about ±11 points; 184 vs 166 of 200 is 9 points', () => {
-  const f = lesson('llm-evals').figures.margin, m = api.calcRun(f, f.ctrl).env.m;
-  assert.equal(Math.round(m), 11); assert.equal((184 - 166) / 200 * 100, 9);
+test('evals: 40 of 50 passing fits a true rate from about 67% to 89%; 184 vs 166 of 200 is 9 points', () => {
+  const f = lesson('llm-evals').figures.margin, e = api.calcRun(f, f.ctrl).env;
+  assert.equal(Math.round(e.lo), 67); assert.equal(Math.round(e.hi), 89); assert.equal((184 - 166) / 200 * 100, 9);
+});
+test('evals: passes are capped at the number of cases, and the interval stays between 0% and 100%', () => {
+  const f = lesson('llm-evals').figures.margin;
+  assert.equal(f.controls.find(c => c.key === 'k').maxFrom, 'n');
+  for (const n of [10, 50, 2000]) for (const k of [0, 1, Math.floor(n / 2), n - 1, n]) {
+    const e = api.calcRun(f, { n, k }).env;
+    assert.ok(e.lo >= 0 && e.lo <= e.p && e.p <= e.hi && e.hi <= 100 + 1e-9, `n ${n}, k ${k}: ${e.lo} ${e.p} ${e.hi}`);
+  }
+});
+test('circuit breakers: no request fails fast before the third timeout opens the breaker', () => {
+  const rows = lesson('circuit-breakers').figures.waits.scenarios.breaker.rows;
+  const opens = rows.filter(x => x.tone === 'stall').map(x => x.s + x.d).sort((a, b) => a - b)[2];
+  for (const x of rows.filter(x => x.tone === 'fail')) assert.ok(x.s >= opens, `${x.label} fails at ${x.s} ms, breaker opens at ${opens} ms`);
+  assert.ok(rows.some(x => x.tone === 'stall' && x.s < opens && x.s + x.d > opens), 'a call already in flight keeps waiting');
+});
+test('indexes: both sides count pages', () => {
+  const c = lesson('indexes').figures.playground, out = api.calcRun(c, { rows: 1e6 }).out;
+  assert.match(out[0].label, /^Pages/); assert.match(out[2].label, /^Pages/);
+  assert.equal(out[0].v, 10000); assert.equal(out[2].v, 4); assert.equal(out[3].v, 2500);
 });
 test('agent loops: parallel tool calls save one model call', () => {
   const sc = lesson('agent-loops').figures.parallel.scenarios;

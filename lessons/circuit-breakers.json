@@ -41,7 +41,7 @@
         },
         {
           "figure": "waits",
-          "caption": "Six requests while payments is down. Without a breaker each waits for the 2 s timeout. With a breaker, after three failures the rest fail at once."
+          "caption": "Seven requests while payments is down. Without a breaker each waits for the 2 s timeout. With a breaker, the third timeout at 2.4 s opens it, and later requests fail at once. Request 4 started before that, so it still waits."
         },
         {
           "h3": "What to do when it is open"
@@ -239,7 +239,7 @@
       "kind": "timeline",
       "unit": "ms",
       "still": 0.99,
-      "axis": 4200,
+      "axis": 5600,
       "legend": [
         [
           "stall",
@@ -264,14 +264,14 @@
             },
             {
               "label": "Request 2",
-              "s": 400,
+              "s": 200,
               "d": 2000,
               "tone": "stall",
               "text": "2 s timeout"
             },
             {
               "label": "Request 3",
-              "s": 800,
+              "s": 400,
               "d": 2000,
               "tone": "stall",
               "text": "2 s timeout"
@@ -285,14 +285,21 @@
             },
             {
               "label": "Request 5",
-              "s": 1600,
+              "s": 2600,
               "d": 2000,
               "tone": "stall",
               "text": "2 s timeout"
             },
             {
               "label": "Request 6",
-              "s": 2000,
+              "s": 3000,
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
+            },
+            {
+              "label": "Request 7",
+              "s": 3400,
               "d": 2000,
               "tone": "stall",
               "text": "2 s timeout"
@@ -301,7 +308,7 @@
         },
         "breaker": {
           "label": "With a breaker",
-          "note": "after three failures the rest fail at once",
+          "note": "opens at 2.4 s; request 4 was already waiting",
           "rows": [
             {
               "label": "Request 1",
@@ -312,14 +319,14 @@
             },
             {
               "label": "Request 2",
-              "s": 400,
+              "s": 200,
               "d": 2000,
               "tone": "stall",
               "text": "2 s timeout"
             },
             {
               "label": "Request 3",
-              "s": 800,
+              "s": 400,
               "d": 2000,
               "tone": "stall",
               "text": "2 s timeout"
@@ -327,18 +334,25 @@
             {
               "label": "Request 4",
               "s": 1200,
-              "d": 30,
-              "tone": "fail"
+              "d": 2000,
+              "tone": "stall",
+              "text": "2 s timeout"
             },
             {
               "label": "Request 5",
-              "s": 1600,
+              "s": 2600,
               "d": 30,
               "tone": "fail"
             },
             {
               "label": "Request 6",
-              "s": 2000,
+              "s": 3000,
+              "d": 30,
+              "tone": "fail"
+            },
+            {
+              "label": "Request 7",
+              "s": 3400,
               "d": 30,
               "tone": "fail"
             }

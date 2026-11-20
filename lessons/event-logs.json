@@ -25,7 +25,7 @@
         { "p": "Order is kept within a partition, not across the topic. Events with the same key always land in the same partition, so all of one user's events stay in order." },
         { "h3": "Consumer groups" },
         { "p": "A **consumer group** is one reader of the topic, such as billing. It keeps its own offset in each partition. Two groups read the same events without affecting each other. Inside a group, each partition is read by one consumer, so the number of partitions limits how many consumers a group can use." },
-        { "figure": "log", "caption": "Events from four users go into three partitions by key. Each group has its own offset in each partition, shown by the triangles. A group that starts late reads everything from offset 0." }
+        { "figure": "log", "caption": "Events from four users go into three partitions by key. Each group has its own offset in each partition, shown by the triangles. A group that starts late can read from the oldest event the log still keeps, here offset 0." }
       ]
     },
     {
@@ -68,7 +68,7 @@
       "still": 0.5,
       "scenarios": {
         "groups": { "label": "Two groups", "note": "both read every event, at their own pace", "scene": { "mode": "log", "period": 13, "rate": 2, "count": 20, "keys": ["user A", "user B", "user C", "user D"], "partitions": 3, "groups": [{ "label": "Billing", "rate": 3 }, { "label": "Search", "rate": 0.7 }] } },
-        "replay": { "label": "A new group replays", "note": "analytics starts at 5 s and reads from offset 0", "scene": { "mode": "log", "period": 13, "rate": 2, "count": 20, "keys": ["user A", "user B", "user C", "user D"], "partitions": 3, "groups": [{ "label": "Billing", "rate": 3 }, { "label": "Analytics", "rate": 2, "start": 5 }] } }
+        "replay": { "label": "A new group replays", "note": "analytics starts at 5 s and reads from the oldest kept offset", "scene": { "mode": "log", "period": 13, "rate": 2, "count": 20, "keys": ["user A", "user B", "user C", "user D"], "partitions": 3, "groups": [{ "label": "Billing", "rate": 3 }, { "label": "Analytics", "rate": 2, "start": 5 }] } }
       }
     },
     "storage": {

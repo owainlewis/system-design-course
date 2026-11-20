@@ -47,3 +47,7 @@ A lesson in `course.json` with no `lessons/<slug>.json` file shows as "Soon" in 
 3. Reuse a figure kind, or add one in `src/kinds/`.
 4. Add tests for what each figure must show.
 5. `npm test && npm run build`, then check the page in a browser.
+
+## Deploy
+
+Every push to `main` runs `.github/workflows/deploy.yml`, which builds `dist/` and uploads it to Cloudflare Pages. Setup is in `docs/deploy.md`.

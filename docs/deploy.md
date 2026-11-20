@@ -1,22 +1,25 @@
-# Deploy to Cloudflare Pages
+# Deploy
 
-The site is static, so Cloudflare Pages serves `dist/` directly.
+The site is static. `npm run build` writes it to `dist/`, and a Cloudflare Worker called `system-design-course` serves that folder as static assets at https://systems-design.aiengineer.co. `wrangler.jsonc` holds the Worker's config.
+
+## How it deploys
+
+`.github/workflows/deploy.yml` runs on every push to `main`. It runs the tests, builds `dist/`, and uploads it with `wrangler deploy`. You can also run it by hand from the Actions tab (Run workflow).
+
+Until the secrets below are set, the workflow skips the deploy and leaves a warning on the run.
+
+To deploy from a laptop instead: `npm test && npm run build && npx wrangler deploy`.
 
 ## One-time setup (Owain)
 
-1. Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git.
-2. Pick `owainlewis/system-design-course`.
-3. Build settings:
-   - Production branch: `main`
-   - Build command: `npm test && npm run build`
-   - Build output directory: `dist`
-   - Environment variable: `NODE_VERSION` = `22`
-4. Save and deploy. The first build gives a `*.pages.dev` address.
-5. In the project → Custom domains → add `system-design.aiengineer.co`. Because `aiengineer.co` is on Cloudflare, it creates the DNS record for you.
+Add these in the repo under Settings → Secrets and variables → Actions:
 
-## After setup
+| Name | Value |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | An API token from https://dash.cloudflare.com/profile/api-tokens. The "Edit Cloudflare Workers" template has the permissions it needs. |
+| `CLOUDFLARE_ACCOUNT_ID` | `80f336a39f4eb1a4a1cea68cce661cdc` |
 
-- Every merge to `main` deploys to production.
-- Every pull request gets its own preview URL, so a lesson can be checked before it goes live.
-- `dist/_redirects` sends `/` to the first lesson until the course has a home page.
-- `dist/_headers` caches files under `/assets/` for a year. Asset URLs carry a content hash, so a new build is never served stale.
+## Notes
+
+- `dist/_headers` is part of the build. Asset URLs carry a content hash, so `/assets/*` is cached for a year and a new build is never served stale.
+- Pull requests do not deploy. CI (`ci.yml`) runs the tests and the build on each one.

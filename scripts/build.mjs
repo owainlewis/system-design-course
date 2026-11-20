@@ -56,6 +56,7 @@ const homeBody = `<header class="bar"><a class="brand" href="${flat ? 'index.htm
 <main class="home">
   <h1>${esc(course.title)}</h1>
   <p class="dek">A free course on how large systems work. Each lesson explains one idea in plain words, with diagrams you can run and change.</p>
+  <a class="start" href="${href(course.parts[0].lessons[0][0])}">Start with lesson 1: ${esc(course.parts[0].lessons[0][1])}</a>
   ${course.parts.map(p => `<h2>${esc(p.title)}</h2><ol>${p.lessons.map(([slug, title]) => { n++; const l = bySlug[slug];
     return `<li><i>${String(n).padStart(2, '0')}</i>${l ? `<div><a href="${href(slug)}">${esc(title)}</a><p>${esc(l.summary)}</p></div><span class="s">${l.minutes} min</span>` : `<span class="t">${esc(title)}</span><span class="s">Soon</span>`}</li>`; }).join('')}</ol>`).join('')}
 </main>`;

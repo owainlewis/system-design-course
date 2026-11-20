@@ -236,3 +236,7 @@ test('pages link to the AI Engineer community and have no email form', () => {
     assert.doesNotMatch(s, /type="email"/, p);
   }
 });
+
+test('home page has a start link to the first lesson', () => {
+  assert.match(read('scripts/build.mjs'), /class="start" href="\$\{href\(course\.parts\[0\]\.lessons\[0\]\[0\]\)\}"/);
+});

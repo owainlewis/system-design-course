@@ -174,14 +174,16 @@ footer { padding: 48px 0 64px; font: 13px var(--sans); color: var(--muted); }
 
 /* Course home page */
 .home { max-width: 760px; margin: 0 auto; padding: 56px 20px 96px; }
-.home > .dek { margin-bottom: 40px; }
+.home > .dek { margin-bottom: 20px; }
+.home .start { display: inline-block; margin-bottom: 24px; font: 500 15px var(--sans); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 6px; text-decoration: none; }
 .home > h2 { font: 600 12px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 40px 0 6px; }
 .home ol { list-style: none; margin: 0; padding: 0; }
-.home li { display: flex; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--hair); font: 16px/1.45 var(--sans); color: var(--muted); }
+.home li { position: relative; display: flex; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--hair); font: 16px/1.45 var(--sans); color: var(--muted); }
 .home li i { font: normal 12px var(--mono); color: var(--muted); width: 22px; flex: none; }
 .home li div { flex: 1; min-width: 0; }
 .home li .t { flex: 1; }
-.home li a { color: var(--ink); font-weight: 500; text-decoration: none; }
-.home li a:hover { color: var(--accent); }
+.home li a { color: var(--accent); font-weight: 500; text-decoration: none; }
+.home li a::after { content: ""; position: absolute; inset: 0; }
+.home li a:hover { text-decoration: underline; }
 .home li p { margin: 3px 0 0; font-size: 14.5px; color: var(--ink-2); }
 .home li .s { font: 12px var(--mono); color: var(--muted); flex: none; }

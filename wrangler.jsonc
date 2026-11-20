@@ -1,0 +1,8 @@
+{
+  // Static site served by Workers Static Assets at https://systems-design.aiengineer.co.
+  // The custom domain is attached to this Worker in the Cloudflare dashboard.
+  "name": "system-design-course",
+  "compatibility_date": "2026-11-18",
+  "assets": { "directory": "./dist" },
+  "observability": { "enabled": true }
+}

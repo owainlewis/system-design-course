@@ -21,15 +21,15 @@
         { "h3": "Leader and followers" },
         { "p": "The most common design sends every write to one replica, the **leader**. The leader applies the write and sends a log of its changes to the other replicas, the **followers**, which apply them in the same order. Reads can go to any replica." },
         { "h3": "Synchronous or asynchronous" },
-        { "p": "With **synchronous** replication, the leader waits until a follower confirms it has the write before telling the client the write succeeded. With **asynchronous** replication, the leader answers at once and sends the change afterwards." },
+        { "p": "With **synchronous** replication, the leader waits until a follower confirms it has the write before telling the client the write succeeded. Having the write is not the same as showing it to reads: in PostgreSQL, `synchronous_commit = on` waits until the follower has saved the change, and `remote_apply` waits until queries on the follower can see it. With **asynchronous** replication, the leader answers at once and sends the change afterwards." },
         { "p": "Asynchronous is faster and keeps working when a follower is slow or down. But for a moment after each write, the followers are behind. That delay is **replication lag**." },
-        { "figure": "sync", "caption": "A user changes their name, then reloads their profile. With asynchronous replication, the read reaches a follower that hasn't caught up. Reading from the leader, or replicating synchronously, avoids it." },
-        { "p": "The fix in the third scenario is called **read-your-writes**: after a user writes, send that user's reads to the leader for a short time, or to a follower that has caught up." },
+        { "figure": "sync", "caption": "A user changes their name, then reloads their profile. With asynchronous replication, the read reaches a follower that hasn't caught up. Reading from the leader avoids it, and so does synchronous replication that waits until the follower has applied the change." },
+        { "p": "The fix in the third scenario is called **read-your-writes**: after a user writes, send that user's reads to a follower that has caught up to that write, or to the leader. Sending them to the leader \"for a few seconds\" only works if lag never exceeds those seconds." },
         { "h3": "When the leader fails" },
         { "p": "If the leader fails, a follower is promoted to leader. This is **failover**. With asynchronous replication, writes the old leader confirmed but hadn't yet sent are lost." },
         { "figure": "failover", "caption": "The leader confirms a write, then fails before sending it on. The promoted follower never received it." },
         { "h3": "Leaderless replication and quorums" },
-        { "p": "Some databases have no leader. The client sends each write to all N replicas and waits for W of them to confirm. Each read asks R replicas and takes the newest value. When W + R is greater than N, every read overlaps at least one replica that has the latest write. Amazon's [Dynamo paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf) describes this design." }
+        { "p": "Some databases have no leader. The client sends each write to all N replicas and waits for W of them to confirm. Each read asks R replicas and takes the newest value. When W + R is greater than N, every read asks at least one replica that confirmed the latest completed write. That overlap is all it promises. Two concurrent writes can still conflict, a failed write can leave some replicas with the new value, and the read must still pick the right version. Amazon's [Dynamo paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf) goes further. When replicas are down, it writes to stand-ins outside the usual N, a **sloppy quorum**, so overlap is not guaranteed. It keeps conflicting versions for the application to reconcile." }
       ]
     },
     {
@@ -60,7 +60,7 @@
           "Replication keeps copies on several machines for durability, availability and read capacity.",
           "Leader-follower replication sends writes to one leader, which streams changes to followers.",
           "Asynchronous replication is fast but lags, and can lose recent writes on failover.",
-          "In a leaderless quorum, W + R > N makes every read include the latest write."
+          "In a leaderless quorum, W + R > N makes every read ask at least one replica with the latest completed write. It doesn't settle conflicts between concurrent writes."
         ] }
       ]
     }
@@ -137,15 +137,15 @@
       "kind": "calc",
       "controls": [
         { "type": "range", "key": "n", "label": "Replicas (N)", "min": 1, "max": 7 },
-        { "type": "range", "key": "w", "label": "Write confirms (W)", "min": 1, "max": 7 },
-        { "type": "range", "key": "r", "label": "Read asks (R)", "min": 1, "max": 7 }
+        { "type": "range", "key": "w", "label": "Write confirms (W)", "min": 1, "max": 7, "maxFrom": "n" },
+        { "type": "range", "key": "r", "label": "Read asks (R)", "min": 1, "max": 7, "maxFrom": "n" }
       ],
       "ctrl": { "n": 3, "w": 2, "r": 1 },
       "rows": [
-        { "label": "Replicas each read overlaps with the latest write", "expr": "Math.max(0, Math.min(w, n) + Math.min(r, n) - n)", "show": "W + R − N, when positive", "format": "d0", "tone": "accent" },
-        { "label": "Reads always see the latest write?", "expr": "Math.min(w, n) + Math.min(r, n) > n ? 1 : 0", "show": "1 means yes: W + R > N", "format": "d0" },
-        { "label": "Replicas that can be down for writes", "expr": "Math.max(0, n - Math.min(w, n))", "show": "N − W", "format": "d0" },
-        { "label": "Replicas that can be down for reads", "expr": "Math.max(0, n - Math.min(r, n))", "show": "N − R", "format": "d0" }
+        { "label": "Replicas each read overlaps with the latest write", "expr": "Math.max(0, w + r - n)", "show": "W + R − N, when positive", "format": "d0", "tone": "accent" },
+        { "label": "Every read reaches the latest completed write?", "expr": "w + r > n ? 1 : 0", "show": "1 means yes: W + R > N", "format": "d0" },
+        { "label": "Replicas that can be down for writes", "expr": "Math.max(0, n - w)", "show": "N − W", "format": "d0" },
+        { "label": "Replicas that can be down for reads", "expr": "Math.max(0, n - r)", "show": "N − R", "format": "d0" }
       ]
     }
   },

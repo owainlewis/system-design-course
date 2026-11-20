@@ -43,11 +43,12 @@ function blockHTML(b) {
 }
 function host(u) { try { return new URL(u).host.replace(/^www\./, ''); } catch { return ''; } }
 function buildPage() {
-  document.title = SPEC.title;
+  document.title = `${SPEC.title} · ${COURSE.title}`;
   const all = COURSE.parts.flatMap(p => p.lessons.map(([slug, title]) => ({ slug, title, part: p.title })));
   const idx = all.findIndex(l => l.slug === SPEC.slug);
   $('brand').href = FLAT ? 'index.html' : '/';
-  $('brand').innerHTML = `${esc(COURSE.title)}<span>${all.length} lessons</span>`;
+  const readyCount = (COURSE.ready || []).length;
+  $('brand').innerHTML = `${esc(COURSE.title)}<span>${readyCount} lessons, ${all.length - readyCount} coming</span>`;
   $('crumb').innerHTML = `${esc(SPEC.part)}<span>·</span>Lesson ${idx + 1} of ${all.length}`;
   buildSidebar(all, idx);
   const ready = new Set(COURSE.ready || []);
@@ -82,7 +83,8 @@ function buildSidebar(all, cur) {
     <button aria-expanded="${open.includes(p.title)}">${CHEV}<span>${esc(p.title)}</span><span class="n">${p.lessons.length}</span></button>
     <ol>${p.lessons.map(([slug, title]) => { n++; const num = `<i>${String(n).padStart(2, '0')}</i><span>${esc(title)}</span>`;
       return `<li data-q="${esc(title.toLowerCase())}">${(COURSE.ready || []).includes(slug) ? `<a href="${lessonHref(slug)}"${slug === SPEC.slug ? ' aria-current="page"' : ''}>${num}</a>` : `<span class="soon" title="Coming soon">${num}</span>`}</li>`; }).join('')}</ol></div>`).join('') + '<p class="none" hidden>No lessons match.</p>';
-  $('count').textContent = `${COURSE.parts.length} parts · ${all.length} lessons`;
+  const readyN = (COURSE.ready || []).length;
+  $('count').textContent = `${COURSE.parts.length} parts · ${readyN} lessons, ${all.length - readyN} coming`;
   const save = () => { try { localStorage.setItem('sdv-open', JSON.stringify([...document.querySelectorAll('.part.open')].map(e => e.dataset.part))); } catch {} };
   document.querySelectorAll('.part > button').forEach(b => b.onclick = () => { const p = b.parentElement; p.classList.toggle('open'); b.setAttribute('aria-expanded', p.classList.contains('open')); save(); });
   $('find').oninput = e => {
@@ -92,10 +94,20 @@ function buildSidebar(all, cur) {
       p.hidden = !!q && !hits; if (q && hits) p.classList.add('open'); any ||= hits > 0;
       if (!q) p.classList.toggle('open', p.dataset.part === curPart || savedOpen().includes(p.dataset.part));
     });
+    document.querySelectorAll('.part > button').forEach(b => b.setAttribute('aria-expanded', b.parentElement.classList.contains('open')));
     document.querySelector('.side .none').hidden = any;
   };
   const savedOpen = () => { try { return JSON.parse(localStorage.getItem('sdv-open') || '[]'); } catch { return []; } };
-  const setNav = on => { document.body.classList.toggle('nav-open', on); $('menu').setAttribute('aria-expanded', on); };
+  // On narrow screens the closed drawer is off screen, so make it inert: no focus, no screen reader.
+  const narrow = matchMedia('(max-width: 979px)');
+  const syncSide = () => { $('side').inert = narrow.matches && !document.body.classList.contains('nav-open'); };
+  const setNav = on => {
+    const was = document.body.classList.contains('nav-open');
+    document.body.classList.toggle('nav-open', on); $('menu').setAttribute('aria-expanded', on); syncSide();
+    if (on && !was && narrow.matches) $('find').focus();
+    if (!on && was && narrow.matches && $('side').contains(document.activeElement)) $('menu').focus();
+  };
+  narrow.addEventListener('change', syncSide); syncSide();
   $('menu').onclick = () => setNav(!document.body.classList.contains('nav-open'));
   $('scrim').onclick = () => setNav(false);
   addEventListener('keydown', e => { if (e.key === 'Escape') setNav(false); if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); setNav(true); $('find').focus(); } });
@@ -115,7 +127,13 @@ function renderControls(f) {
   }).join('');
   box.querySelectorAll('[data-k][data-v]').forEach(b => b.onclick = () => { f.ctrl[b.dataset.k] = isNaN(b.dataset.v) ? b.dataset.v : +b.dataset.v; f.t = 0; kindOf(f).change?.(f, b.dataset.k); renderControls(f); });
   box.querySelectorAll('[data-act]').forEach(b => b.onclick = () => kindOf(f).action?.(f, b.dataset.act));
-  box.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { f.ctrl[r.dataset.k] = +r.value; r.nextElementSibling.textContent = r.value; });
+  // A range with maxFrom can't go above another input, so a quorum can't exceed N or passes exceed cases.
+  const bound = () => f.def.controls.filter(c => c.maxFrom).forEach(c => {
+    const r = box.querySelector(`input[data-k="${c.key}"]`), max = Math.min(c.max, f.ctrl[c.maxFrom]);
+    f.ctrl[c.key] = Math.min(f.ctrl[c.key], max); r.max = max; r.value = f.ctrl[c.key]; r.nextElementSibling.textContent = r.value;
+  });
+  box.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { f.ctrl[r.dataset.k] = +r.value; r.nextElementSibling.textContent = r.value; bound(); });
+  bound();
   box.querySelectorAll('[data-burst]').forEach(b => b.onclick = () => {
     const at = Math.min(f.t + .05, f.def.scene.period - .7);
     f.ctrl.extras = [...f.ctrl.extras.filter(e => Math.abs(e.at - at) > .3), { at, count: 10, spread: .33 }].slice(-6);

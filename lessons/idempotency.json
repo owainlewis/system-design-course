@@ -27,7 +27,7 @@
         { "code": "POST /v1/charges\nIdempotency-Key: 8e03978e-40d5-43e8-bc93-6894a57f9324\n\n{ \"amount\": 2000, \"currency\": \"gbp\" }", "caption": "A charge with an idempotency key. The key is a random UUID made once per charge and reused on every retry." },
         { "h3": "Getting it right" },
         { "list": [
-          "**Save the key and the work together.** Record the key in the same database transaction as the charge. Otherwise a crash between the two can still repeat the work.",
+          "**Save the key and the work together.** When the work is a write to your own database, record the key in the same transaction. When the work is a call to someone else, such as a card network, it can't join your transaction. Record the key as pending first, pass an idempotency key on to that provider too, and reconcile pending records against the provider after a crash.",
           "**Handle two copies at once.** A retry can arrive while the first request is still running. Lock the key, or reject the second request until the first finishes.",
           "**Check the request matches.** If a key comes back with a different body, it is a client bug. Return an error rather than the old result.",
           "**Expire old keys.** Keep keys long enough to cover any retry, such as a day, then delete them."
@@ -54,7 +54,7 @@
           "A timeout doesn't tell the client whether the request worked, so it has to retry.",
           "An idempotent operation has the same effect however many times it runs.",
           "An idempotency key lets the server spot a retry and return the first result.",
-          "Store the key in the same transaction as the work, and handle duplicates that arrive at the same time."
+          "Store the key in the same transaction as your own writes, pass a key on to outside providers, and handle duplicates that arrive at the same time."
         ] }
       ]
     }

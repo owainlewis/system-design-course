@@ -29,7 +29,7 @@
         { "figure": "atomic", "caption": "A transfer that crashes half way. Without a transaction, Alice loses 50 and Bob gains nothing. With one, the database undoes the first change." },
         { "h3": "The lost update" },
         { "p": "Two requests each add to the same balance. Each reads 100, adds its amount, and writes the result. The second write replaces the first, so one deposit disappears. Isolation is about preventing this kind of interference." },
-        { "figure": "lost-update", "caption": "Two deposits to the same account. Without a lock, the 30 deposit is lost. With SELECT ... FOR UPDATE, the second request waits for the first." },
+        { "figure": "lost-update", "caption": "Two deposits to the same account. Without a lock, the 50 deposit is lost. With SELECT ... FOR UPDATE, the second request waits for the first." },
         { "p": "Other fixes work too: an atomic `UPDATE accounts SET balance = balance + 30`, or a stricter isolation level that detects the conflict and aborts one transaction." },
         { "h3": "Isolation levels" },
         { "p": "Full isolation is expensive, so databases offer weaker levels that allow some anomalies. The SQL standard defines four levels by the anomalies each one prevents." },

@@ -27,7 +27,7 @@
         { "figure": "versions", "caption": "Loading a page and five files, with a 40 ms round trip. HTTP/2 asks for all five files at once on one connection." },
         { "h3": "HTTP/3" },
         { "p": "HTTP/2 fixed head-of-line blocking in HTTP, but not in TCP. TCP delivers bytes in order, so when one packet is lost, every stream on the connection waits for it to be sent again." },
-        { "p": "HTTP/3 runs on **QUIC**, a transport built on UDP. QUIC knows about streams, so a lost packet delays only the stream it belonged to. [RFC 9114](https://www.rfc-editor.org/rfc/rfc9114#section-1) gives this as the reason for HTTP/3." },
+        { "p": "HTTP/3 runs on **QUIC**, a transport built on UDP. QUIC knows about streams, so a lost packet delays only the streams that had data in it, not every request on the connection. [RFC 9114](https://www.rfc-editor.org/rfc/rfc9114#section-1) gives this as the reason for HTTP/3." },
         { "figure": "loss", "caption": "One packet belonging to the image is lost. Over HTTP/2 every file waits for it. Over HTTP/3 only the image does." }
       ]
     },

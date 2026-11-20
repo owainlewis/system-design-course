@@ -3,7 +3,7 @@
   "course": "System Design, Visually",
   "part": "Scaling the web tier",
   "title": "Stateless services",
-  "summary": "Why app servers should keep no user data in memory, and where that data goes instead.",
+  "summary": "Why app servers must not depend on user data held in their own memory, and where that data goes instead.",
   "minutes": 7,
   "sections": [
     {

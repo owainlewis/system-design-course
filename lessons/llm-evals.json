@@ -11,7 +11,7 @@
       "heading": "The problem",
       "blocks": [
         {
-          "p": "You change a prompt to fix one bad answer. It works for that case. Did it break ten others? A model's output varies from run to run, and no unit test can check free text for exact equality."
+          "p": "You change a prompt to fix one bad answer. It works for that case. Did it break ten others? A model's output varies from run to run, and an exact-match test fails good answers that are worded differently."
         },
         {
           "p": "Without a way to measure, every change is a guess, and switching to a new model is a leap of faith."
@@ -49,11 +49,14 @@
           "h3": "How many cases"
         },
         {
-          "p": "A score from a small set is noisy. With 50 cases and an 80% pass rate, the true rate could plausibly be anywhere from about 69% to 91%. A change from 80% to 84% on 50 cases tells you almost nothing."
+          "p": "A score from a small set is noisy. With 40 of 50 cases passing, the true rate could plausibly be anywhere from about 67% to 89%. A change from 40 to 42 passes tells you almost nothing."
         },
         {
           "figure": "margin",
-          "caption": "The 95% margin of error on a pass rate, and the smallest difference between two versions you can trust, from the number of cases."
+          "caption": "The range of true pass rates that fit what you measured, from the number of cases and how many passed. It uses the Wilson interval, which stays between 0% and 100% even with few cases."
+        },
+        {
+          "p": "To compare two versions, run both on the same cases and count the cases that changed: fixed by the new version, and broken by it. Cases both versions pass or both fail say nothing about the difference. If 25 cases were fixed and 7 broken, the new version is ahead by 18. With only 3 fixed and 1 broken, the difference could easily be chance. The Anthropic paper below shows how to put error bars on this paired difference."
         },
         {
           "h3": "After shipping"
@@ -218,35 +221,46 @@
         },
         {
           "type": "range",
-          "key": "p",
-          "label": "Pass rate (%)",
-          "min": 50,
-          "max": 99
+          "key": "k",
+          "label": "Cases passed",
+          "min": 0,
+          "max": 2000,
+          "maxFrom": "n"
         }
       ],
       "ctrl": {
         "n": 50,
-        "p": 80
+        "k": 40
       },
       "formats": {
-        "m": "d1"
+        "k": "d0",
+        "n": "d0"
       },
       "rows": [
         {
-          "key": "m",
-          "label": "Margin of error (± points)",
-          "expr": "1.96 * Math.sqrt(p / 100 * (1 - p / 100) / n) * 100",
-          "show": "1.96 × √(p × (1 − p) ÷ {n})",
+          "key": "p",
+          "label": "Pass rate (%)",
+          "expr": "k / n * 100",
+          "show": "{k} ÷ {n}",
+          "format": "d1",
+          "tone": "accent"
+        },
+        {
+          "key": "lo",
+          "label": "Lowest plausible true rate (%)",
+          "expr": "(() => { const q = k / n, z = 1.96; return Math.max(0, (q + z * z / (2 * n) - z * Math.sqrt(q * (1 - q) / n + z * z / (4 * n * n))) / (1 + z * z / n) * 100); })()",
+          "show": "95% Wilson interval, lower end",
           "format": "d1"
         },
         {
-          "label": "Smallest difference you can trust (points)",
-          "expr": "m * Math.SQRT2",
-          "show": "{m} × √2, for two versions",
-          "format": "d1",
-          "tone": "accent"
+          "key": "hi",
+          "label": "Highest plausible true rate (%)",
+          "expr": "(() => { const q = k / n, z = 1.96; return Math.min(100, (q + z * z / (2 * n) + z * Math.sqrt(q * (1 - q) / n + z * z / (4 * n * n))) / (1 + z * z / n) * 100); })()",
+          "show": "95% Wilson interval, upper end",
+          "format": "d1"
         }
-      ]
+      ],
+      "stat": "assumes the cases are a fair sample of what users ask, and each passes or fails independently"
     }
   },
   "references": [

@@ -3,7 +3,7 @@
   "course": "System Design, Visually",
   "part": "Data",
   "title": "Consensus and Raft",
-  "summary": "How a group of servers agrees on one order of changes, keeps working when some fail, and never ends up with two leaders.",
+  "summary": "How a group of servers agrees on one order of changes, keeps working when some fail, and never elects two leaders in the same term.",
   "minutes": 11,
   "sections": [
     {
@@ -29,7 +29,7 @@
           "h3": "Replicating a write"
         },
         {
-          "p": "Clients send writes to the leader. The leader adds the write to its log and sends it to the others. Once a majority, counting itself, has the entry, the entry is **committed**: it will never be lost or changed. The leader applies it and answers the client."
+          "p": "Clients send writes to the leader. The leader adds the write to its log and sends it to the others. Once a majority, counting itself, has an entry from the leader's current term, the entry is **committed**: it will never be lost or changed. Entries left over from an earlier term are not committed by counting copies. They become committed when a later entry from the current term is, as section 5.4.2 of the [Raft paper](https://raft.github.io/raft.pdf) explains. The leader applies it and answers the client."
         },
         {
           "h3": "Electing a leader"
@@ -86,8 +86,8 @@
         {
           "list": [
             "Consensus lets a group agree on one order of changes despite failures.",
-            "Raft commits an entry once a majority has it, and elects leaders by majority vote in numbered terms.",
-            "Any two majorities overlap, which rules out two leaders in one term and lost commits.",
+            "Raft commits an entry from the current term once a majority has it, and elects leaders by majority vote in numbered terms.",
+            "Any two majorities overlap, which rules out two leaders in one term and lost commits. A cut-off old leader can still believe it leads, but it can't commit anything.",
             "2F + 1 servers survive F failures, so clusters have an odd size."
           ]
         }

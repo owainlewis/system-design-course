@@ -6,7 +6,7 @@
 @font-face { font-family: 'Source Serif 4'; src: url('fonts/source-serif-4-latin-opsz-normal.woff2') format('woff2'); font-weight: 200 900; font-style: normal; font-display: swap; }
 :root {
   --bg: #FBFAF7; --fig: #F3F2EE; --node: #FFFFFF;
-  --ink: #17181A; --ink-2: #4A4D52; --muted: #868A91; --hair: #E3E1DC; --hair-2: #CFCCC5;
+  --ink: #17181A; --ink-2: #4A4D52; --muted: #6B6F75; --hair: #E3E1DC; --hair-2: #CFCCC5;
   --accent: #2F5BD3; --red: #C9423A; --amber: #B87514;
   --s0: #6B7A99; --s1: #B07A3B; --s2: #4E8C78; --s3: #8C6A9E; --s4: #A65F5F; --s5: #7F8A45;
   --serif: "Source Serif 4", Georgia, serif;
@@ -17,14 +17,14 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #131416; --fig: #1B1C1F; --node: #222327;
-    --ink: #ECEBE7; --ink-2: #B6B7BA; --muted: #808389; --hair: #2B2D31; --hair-2: #3B3E43;
+    --ink: #ECEBE7; --ink-2: #B6B7BA; --muted: #8A8D93; --hair: #2B2D31; --hair-2: #3B3E43;
     --accent: #7D9BFF; --red: #FF6F62; --amber: #E0A23F; color-scheme: dark;
     --s0: #9AA8C4; --s1: #D9A267; --s2: #7CBFA9; --s3: #B99ACB; --s4: #D68C8C; --s5: #AEB86F;
   }
 }
 :root[data-theme="dark"] {
   --bg: #131416; --fig: #1B1C1F; --node: #222327;
-  --ink: #ECEBE7; --ink-2: #B6B7BA; --muted: #808389; --hair: #2B2D31; --hair-2: #3B3E43;
+  --ink: #ECEBE7; --ink-2: #B6B7BA; --muted: #8A8D93; --hair: #2B2D31; --hair-2: #3B3E43;
   --accent: #7D9BFF; --red: #FF6F62; --amber: #E0A23F; color-scheme: dark;
     --s0: #9AA8C4; --s1: #D9A267; --s2: #7CBFA9; --s3: #B99ACB; --s4: #D68C8C; --s5: #AEB86F;
 }
@@ -41,6 +41,8 @@ b { font-weight: 600; }
 .bar .brand { font-weight: 600; text-decoration: none; color: var(--ink); letter-spacing: -0.005em; }
 .bar .brand span { color: var(--muted); font-weight: 400; margin-left: 8px; }
 .bar .sp { flex: 1; }
+/* Keep anchored headings and figures clear of the sticky bar. */
+html { scroll-padding-top: 64px; }
 .bar .menu { display: none; padding: 6px 8px; }
 .bar .sub { text-decoration: none; white-space: nowrap; font: 500 13px var(--sans); background: var(--ink); color: var(--bg); padding: 6px 12px; border-radius: 5px; }
 
@@ -160,6 +162,9 @@ footer { padding: 48px 0 64px; font: 13px var(--sans); color: var(--muted); }
   body { font-size: 17px; }
   header.top { padding-top: 32px; }
   .bar .brand span { display: none; }
+  .bar { gap: 8px; padding: 0 16px; }
+  .bar .brand { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+  .bar .sub { font-size: 12px; padding: 6px 10px; }
   .pager { grid-template-columns: 1fr; }
   .pager .nx { grid-column: 1; }
   h1 { font-size: 34px; }

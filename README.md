@@ -1,6 +1,6 @@
 # System Design, Visually
 
-A free course on system design with interactive diagrams. Deployed as a static site at system-design.aiengineer.co.
+A free course on system design with interactive diagrams. Deployed as a static site at systems-design.aiengineer.co.
 
 ## How it fits together
 
@@ -20,4 +20,4 @@ npm run dev      build and serve locally
 
 ## Deploy
 
-Cloudflare Pages, connected to this repo. Build command `npm test && npm run build`, output directory `dist`. Custom domain `system-design.aiengineer.co`.
+A Cloudflare Worker serves `dist/` as static assets at `systems-design.aiengineer.co`. Every push to `main` deploys it. See `docs/deploy.md`.

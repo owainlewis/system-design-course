@@ -56,7 +56,7 @@
           "h3": "Least connections"
         },
         {
-          "p": "Send each request to the server with the fewest requests in progress. A slow server finishes requests more slowly, so it has more in progress, so it gets fewer new ones. The load balancer adapts without being told which server is slow."
+          "p": "Send each request to the server with the fewest open connections. When each connection carries one request at a time, that is the server with the fewest requests in progress, which is what this simulation counts. A slow server finishes requests more slowly, so it has more in progress, so it gets fewer new ones. The load balancer adapts without being told which server is slow."
         },
         {
           "figure": "least-connections",
@@ -96,7 +96,7 @@
         {
           "list": [
             "**NGINX** uses round robin by default. It also offers `least_conn`, `ip_hash` (the same client usually reaches the same server) and `hash` with a key you choose. With `consistent`, adding or removing a server moves only a few keys, which suits caches; see the lesson on consistent hashing. Its passive health checks use `max_fails` and `fail_timeout`.",
-            "**AWS Application Load Balancer** uses round robin by default. It also offers least outstanding requests, which is least connections by another name, and weighted random. If too few servers are healthy, it sends traffic to all of them rather than to none, which AWS calls failing open.",
+            "**AWS Application Load Balancer** uses round robin by default. It also offers least outstanding requests, which counts requests in progress rather than connections, and weighted random. If too few servers are healthy, it sends traffic to all of them rather than to none, which AWS calls failing open.",
             "**Draining.** When you remove a server on purpose, the load balancer should stop sending it new requests but let the ones in progress finish. On AWS this is the deregistration delay, 300 seconds by default."
           ]
         }

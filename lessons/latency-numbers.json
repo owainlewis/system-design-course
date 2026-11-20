@@ -86,7 +86,7 @@
           "list": [
             "Memory is measured in nanoseconds, the datacenter network in fractions of a millisecond, and distant regions in hundreds of milliseconds.",
             "Treat the numbers as orders of magnitude. The ratios matter more than the exact values.",
-            "Most slow requests are slow because of round trips, not computation.",
+            "Across a network, round trips often cost more than the computation. Measure before deciding which one is slow.",
             "Fewer, larger requests beat many small ones."
           ]
         }

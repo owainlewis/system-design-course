@@ -32,7 +32,7 @@
         { "h3": "Reading an order page" },
         { "p": "An order page needs the order, its line items and each item's product. Here are three ways to read it. The first is a common mistake: one query for the order, then a query per item from the app. The second joins the tables in one query. The third stores the whole order as one document." },
         { "figure": "order-page", "caption": "Reading one order with three items, with a 1 ms round trip to the database. Count the round trips in each version." },
-        { "p": "The document is fastest for this page because it was designed for this page. Ask a different question, such as total sales per product, and the relational version answers with one query while the document store has to read every order." }
+        { "p": "The document is fastest for this page because it was designed for this page. Ask a different question, such as total sales per product, and the relational version groups compact rows from an indexed line-items table, while the document store must scan or unwind whole orders." }
       ]
     },
     {
@@ -81,30 +81,30 @@
       "kind": "timeline",
       "unit": "ms",
       "still": 0.99,
-      "legend": [["net", "round trip"], ["work", "database work"]],
+      "legend": [["net", "network"], ["work", "database work"]],
       "scenarios": {
         "loop": {
           "label": "One query per item",
           "note": "4 round trips",
           "rows": [
-            { "label": "SELECT order 42", "spans": [{ "s": 0, "d": 1, "tone": "net" }, { "s": 1, "d": 0.3, "tone": "work" }] },
-            { "label": "SELECT item 1 + product", "spans": [{ "s": 1.3, "d": 1, "tone": "net" }, { "s": 2.3, "d": 0.3, "tone": "work" }] },
-            { "label": "SELECT item 2 + product", "spans": [{ "s": 2.6, "d": 1, "tone": "net" }, { "s": 3.6, "d": 0.3, "tone": "work" }] },
-            { "label": "SELECT item 3 + product", "spans": [{ "s": 3.9, "d": 1, "tone": "net" }, { "s": 4.9, "d": 0.3, "tone": "work" }] }
+            { "label": "SELECT order 42", "spans": [{ "s": 0, "d": 0.5, "tone": "net" }, { "s": 0.5, "d": 0.3, "tone": "work" }, { "s": 0.8, "d": 0.5, "tone": "net" }] },
+            { "label": "SELECT item 1 + product", "spans": [{ "s": 1.3, "d": 0.5, "tone": "net" }, { "s": 1.8, "d": 0.3, "tone": "work" }, { "s": 2.1, "d": 0.5, "tone": "net" }] },
+            { "label": "SELECT item 2 + product", "spans": [{ "s": 2.6, "d": 0.5, "tone": "net" }, { "s": 3.1, "d": 0.3, "tone": "work" }, { "s": 3.4, "d": 0.5, "tone": "net" }] },
+            { "label": "SELECT item 3 + product", "spans": [{ "s": 3.9, "d": 0.5, "tone": "net" }, { "s": 4.4, "d": 0.3, "tone": "work" }, { "s": 4.7, "d": 0.5, "tone": "net" }] }
           ]
         },
         "join": {
           "label": "One query with a join",
           "note": "1 round trip; the database joins three tables",
           "rows": [
-            { "label": "SELECT ... JOIN items JOIN products", "spans": [{ "s": 0, "d": 1, "tone": "net" }, { "s": 1, "d": 0.6, "tone": "work" }] }
+            { "label": "SELECT ... JOIN items JOIN products", "spans": [{ "s": 0, "d": 0.5, "tone": "net" }, { "s": 0.5, "d": 0.6, "tone": "work" }, { "s": 1.1, "d": 0.5, "tone": "net" }] }
           ]
         },
         "doc": {
           "label": "One document",
           "note": "1 round trip; the order is stored as one document",
           "rows": [
-            { "label": "GET order 42", "spans": [{ "s": 0, "d": 1, "tone": "net" }, { "s": 1, "d": 0.2, "tone": "work" }] }
+            { "label": "GET order 42", "spans": [{ "s": 0, "d": 0.5, "tone": "net" }, { "s": 0.5, "d": 0.2, "tone": "work" }, { "s": 0.7, "d": 0.5, "tone": "net" }] }
           ]
         }
       }

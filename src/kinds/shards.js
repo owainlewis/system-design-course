@@ -48,7 +48,7 @@ KINDS.shards = {
     for (const q of sim.reqs) {
       if (q.t > now) break;
       seen[q.shard]++; if (q.t > now - 1.5) recent[q.shard]++;
-      const dt = now - q.t; if (dt < SH_IN) { const p = bez(R, S[q.shard], ease(dt / SH_IN), portrait); dot(ctx, p.x, p.y, 3, COL.ink2); }
+      const dt = now - q.t; if (dt < SH_IN) { const p = bez(R, S[q.shard], ease(dt / SH_IN), portrait); packet(ctx, p.x, p.y, 3.2, COL.accent); }
     }
     const per = s.by === 'range' ? sim.MAX / N : 0, maxRecent = Math.max(1, ...recent), avg = recent.reduce((a, b) => a + b, 0) / N;
     S.forEach((p, i) => {

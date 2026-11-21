@@ -38,9 +38,9 @@
         { "table": {
           "head": ["Strategy", "Write speed", "Fresh reads after a write", "If the cache fails"],
           "rows": [
-            ["Cache-aside", "Database speed", "After the next miss reloads it", "Reads go to the database"],
-            ["Write-through", "Slower: cache and database", "Yes", "No data lost"],
-            ["Write-back", "Fast: cache only", "Yes", "Unsaved writes are lost"]
+            ["Cache-aside", "Database plus cache delete", "Yes (next read misses and loads from DB)", "Reads go to the database"],
+            ["Write-through", "Slower: inline cache and database", "Yes, from the cache", "No data lost"],
+            ["Write-back", "Fast: cache only", "Yes, from the cache", "Unsaved writes are lost"]
           ]
         } }
       ]
@@ -124,10 +124,11 @@
         "through": {
           "label": "Write-through",
           "note": "the write waits for the database",
+          "state": { "db": "user 7: Ana", "cache": "user:7 = Ana" },
           "steps": [
-            { "from": "app", "to": "cache", "label": "SET user:7 = Ann", "set": { "cache": "user:7 = Ann" } },
+            { "from": "app", "to": "cache", "label": "SET user:7 = Ann" },
             { "from": "cache", "to": "db", "label": "UPDATE user 7 = Ann", "set": { "db": "user 7: Ann" } },
-            { "from": "db", "to": "cache", "label": "OK", "kind": "answer" },
+            { "from": "db", "to": "cache", "label": "OK", "kind": "answer", "set": { "cache": "user:7 = Ann" } },
             { "from": "cache", "to": "app", "label": "Saved", "kind": "answer" }
           ]
         },

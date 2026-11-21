@@ -27,7 +27,7 @@
         },
         {
           "list": [
-            "**Closed.** Calls go through as normal. The breaker counts failures. When failures pass a threshold, such as half of the calls in the last 10 seconds, it opens.",
+            "**Closed.** Calls go through as normal. The breaker counts failures. Once enough calls have been seen and failures pass a threshold, such as half of the calls in the last 10 seconds, it opens.",
             "**Open.** Calls fail at once without being sent. The caller can return an error, a cached value, or a simpler page. After a wait, such as 30 seconds, the breaker moves to half-open.",
             "**Half-open.** A few trial calls go through. If they succeed, the breaker closes. If they fail, it opens again and waits."
           ]

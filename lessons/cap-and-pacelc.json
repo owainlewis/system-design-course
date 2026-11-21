@@ -19,9 +19,9 @@
       "heading": "How it works",
       "blocks": [
         { "h3": "CAP" },
-        { "p": "The CAP theorem names three properties. **Consistency**: every read sees the latest write. **Availability**: every request to a working node gets an answer. **Partition tolerance**: the system keeps running when messages between nodes are lost." },
+        { "p": "The CAP theorem names three properties. **Consistency**: every read sees the latest write or an error. **Availability**: every request to a working node gets a non-error answer. **Partition tolerance**: the system keeps running when messages between nodes are lost." },
         { "p": "[Gilbert and Lynch proved](https://doi.org/10.1145/564585.564601) that during a partition a system can't have both consistency and availability. Partitions aren't optional on a real network, so the real choice is what to give up while one lasts." },
-        { "figure": "partition", "caption": "Node A and node B can't reach each other. A consistent system refuses the write it can't replicate. An available system accepts it, and a reader on the other side gets the old value." },
+        { "figure": "partition", "caption": "Node A and node B can't reach each other. With two nodes, a consistent system refuses writes it can't replicate (in larger clusters, a cut-off minority also refuses reads). An available system accepts the write, and the other side serves stale data." },
         { "list": [
           "**Choose consistency** and some requests fail during the partition. Banking ledgers and inventory counts often choose this.",
           "**Choose availability** and every request gets an answer, but some answers are stale and conflicting writes must be merged later. Shopping carts and like counts often choose this."
@@ -100,7 +100,7 @@
       "kind": "timeline",
       "unit": "ms",
       "still": 0.99,
-      "legend": [["net", "network"], ["work", "database work"]],
+      "legend": [["net", "network"], ["work", "database work"], ["wait", "async replication"]],
       "scenarios": {
         "consistent": {
           "label": "Wait for both replicas",
@@ -113,11 +113,11 @@
         },
         "fast": {
           "label": "Answer after the nearest",
-          "note": "fast, but the US replica is behind for a while",
+          "note": "client waits 12 ms; US catches up in the background",
           "rows": [
             { "label": "Client to Europe replica", "spans": [{ "s": 0, "d": 5, "tone": "net" }, { "s": 7, "d": 5, "tone": "net" }] },
             { "label": "Europe replica writes", "depth": 1, "s": 5, "d": 2, "tone": "work" },
-            { "label": "Copy to US, later", "depth": 1, "s": 12, "d": 40, "tone": "wait" }
+            { "label": "Copy to US, async", "depth": 1, "background": true, "s": 7, "d": 40, "tone": "wait" }
           ]
         }
       }

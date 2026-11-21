@@ -27,7 +27,7 @@
         { "h3": "Shared session store" },
         { "p": "Every server writes sessions to a shared store, such as a database or an in-memory key-value store. Any server can read any session, so the load balancer can send each request anywhere, and losing a server loses no sessions." },
         { "h3": "Or put the state in the request" },
-        { "p": "Another option is to put the session data itself in a token that the client sends with every request. The server signs the token so it can detect changes. A **JSON Web Token**, defined in [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519), is a common format. The cost is that a signed token stays valid until it expires, so logging a user out early needs extra work." }
+        { "p": "Another option is to put the session data itself in a token that the client sends with every request. The server signs the token so it can detect changes. A **JSON Web Token**, defined in [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519), is a common format. A signed token is readable by the client, so keep secrets out of it. It also stays valid until it expires, so logging a user out early needs extra work." }
       ]
     },
     {
@@ -74,10 +74,12 @@
             { "from": "browser", "to": "lb", "label": "Log in" },
             { "from": "lb", "to": "s1", "label": "Log in" },
             { "from": "s1", "to": "s1", "label": "Keep session abc", "set": { "s1": "session abc" } },
-            { "from": "s1", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "s1", "to": "lb", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "lb", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
             { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
             { "from": "lb", "to": "s2", "label": "GET /orders, abc" },
-            { "from": "s2", "to": "browser", "label": "401: who are you?", "kind": "fail" }
+            { "from": "s2", "to": "lb", "label": "401: who are you?", "kind": "fail" },
+            { "from": "lb", "to": "browser", "label": "401: who are you?", "kind": "fail" }
           ]
         },
         "sticky": {
@@ -87,29 +89,35 @@
             { "from": "browser", "to": "lb", "label": "Log in" },
             { "from": "lb", "to": "s1", "label": "Log in" },
             { "from": "s1", "to": "s1", "label": "Keep session abc", "set": { "s1": "session abc" } },
-            { "from": "s1", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "s1", "to": "lb", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "lb", "to": "browser", "label": "OK + sticky cookie (s1)", "kind": "answer", "set": { "lb": "pinned to s1" } },
             { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
             { "from": "lb", "to": "s1", "label": "Same server as before" },
-            { "from": "s1", "to": "browser", "label": "200 OK", "kind": "answer" },
+            { "from": "s1", "to": "lb", "label": "200 OK", "kind": "answer" },
+            { "from": "lb", "to": "browser", "label": "200 OK", "kind": "answer" },
             { "from": "s1", "to": "s1", "label": "Server 1 fails", "kind": "fail", "set": { "s1": "down, session lost" } },
             { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
             { "from": "lb", "to": "s2", "label": "GET /orders, abc" },
-            { "from": "s2", "to": "browser", "label": "401: who are you?", "kind": "fail" }
+            { "from": "s2", "to": "lb", "label": "401: who are you?", "kind": "fail" },
+            { "from": "lb", "to": "browser", "label": "401: who are you?", "kind": "fail" }
           ]
         },
         "shared": {
           "label": "Shared session store",
-          "note": "any server can handle any request",
+          "note": "survives both a different server and a crash",
           "steps": [
             { "from": "browser", "to": "lb", "label": "Log in" },
             { "from": "lb", "to": "s1", "label": "Log in" },
             { "from": "s1", "to": "store", "label": "Save session abc", "set": { "store": "session abc" } },
-            { "from": "s1", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "s1", "to": "lb", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "lb", "to": "browser", "label": "OK, cookie: abc", "kind": "answer" },
+            { "from": "s1", "to": "s1", "label": "Server 1 fails", "kind": "fail", "set": { "s1": "down" } },
             { "from": "browser", "to": "lb", "label": "GET /orders, abc" },
             { "from": "lb", "to": "s2", "label": "GET /orders, abc" },
             { "from": "s2", "to": "store", "label": "Session abc?" },
             { "from": "store", "to": "s2", "label": "User 7", "kind": "answer" },
-            { "from": "s2", "to": "browser", "label": "200 OK", "kind": "answer" }
+            { "from": "s2", "to": "lb", "label": "200 OK", "kind": "answer" },
+            { "from": "lb", "to": "browser", "label": "200 OK", "kind": "answer" }
           ]
         }
       }

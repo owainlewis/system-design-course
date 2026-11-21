@@ -40,9 +40,9 @@
       "heading": "In practice",
       "blocks": [
         { "list": [
-          "**Redis lets you choose.** Its [eviction settings](https://redis.io/docs/latest/develop/reference/eviction/) include LRU, LFU, random, and evicting the keys closest to expiry, either across all keys or only keys with a TTL.",
+          "**Redis lets you choose.** Its [eviction settings](https://redis.io/docs/latest/develop/reference/eviction/) include LRU, LFU and random across all keys or only keys with a TTL, plus evicting keys with a TTL that are closest to expiry.",
           "**Redis approximates LRU.** Keeping every key in exact order costs memory, so Redis samples a few keys and evicts the least recently used among them. The same page describes how close the approximation gets.",
-          "**Exact LRU is cheap for small caches.** A hash map plus a linked list gives constant time lookups and moves. Many in-process caches use this.",
+          "**Exact LRU is cheap for small caches.** A hash map plus a doubly linked list gives constant time lookups and moves. Many in-process caches use this.",
           "**Measure, then choose.** Which policy wins depends on the access pattern. Measure the hit ratio on real traffic before changing the default."
         ] }
       ]
@@ -71,18 +71,18 @@
   "figures": {
     "lru": {
       "kind": "cache",
-      "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABCDABEABCDE", "capacity": 4, "policy": "lru", "db": 0.3 }
+      "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABCDABEABCDE", "capacity": 4, "policy": "lru", "db": 0.1 }
     },
     "compare": {
       "kind": "cache",
       "scenarios": {
-        "lru": { "label": "LRU", "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABACADAEAFAGAH", "capacity": 4, "policy": "lru", "db": 0.3 } },
-        "fifo": { "label": "FIFO", "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABACADAEAFAGAH", "capacity": 4, "policy": "fifo", "db": 0.3 } }
+        "lru": { "label": "LRU", "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABACADAEAFAGAH", "capacity": 4, "policy": "lru", "db": 0.1 } },
+        "fifo": { "label": "FIFO", "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABACADAEAFAGAH", "capacity": 4, "policy": "fifo", "db": 0.1 } }
       }
     },
     "scan": {
       "kind": "cache",
-      "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABABABCDEFABAB", "capacity": 4, "policy": "lru", "db": 0.3 }
+      "scene": { "period": 11, "start": 0.3, "end": 9.5, "seq": "ABABABCDEFABAB", "capacity": 4, "policy": "lru", "db": 0.1 }
     },
     "playground": {
       "kind": "cache",

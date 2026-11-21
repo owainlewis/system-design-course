@@ -21,7 +21,7 @@
         { "p": "An **object store** keeps **objects**: a blob of bytes, some metadata, and a key. Objects live in **buckets**. There are no real folders; a key such as `photos/2024/7.jpg` is just a name, though tools show the slashes as folders." },
         { "p": "You use it over HTTP: `PUT` an object, `GET` it, `DELETE` it. You replace an object whole rather than editing part of it. The store spreads copies across machines and buildings, so you never manage disks." },
         { "h3": "Uploads that skip your servers" },
-        { "p": "Sending every upload through an app server wastes its bandwidth and workers. Instead, the app server creates a **presigned URL**: a link that allows one specific upload, to one key, for a short time. The browser sends the file straight to the object store." },
+        { "p": "Sending every upload through an app server wastes its bandwidth and workers. Instead, the app server creates a **presigned URL**: a link that allows uploading to one specific key for a short time. The browser sends the file straight to the object store." },
         { "figure": "upload", "caption": "Uploading a photo through the app server, and with a presigned URL. Count how many times the photo's bytes cross the network." },
         { "h3": "Large files in parts" },
         { "p": "A multi-gigabyte file sent in one request is slow, and a dropped connection near the end means starting again. A **multipart upload** splits the file into parts, sends them in parallel, and retries only a part that fails. The store joins the parts at the end." },
@@ -93,11 +93,12 @@
       "kind": "timeline",
       "unit": "ms",
       "still": 0.99,
-      "legend": [["net", "uploading"], ["fail", "failed"]],
+      "legend": [["net", "uploading"], ["fail", "failed"], ["work", "completing"]],
       "axis": 110000,
       "scenarios": {
         "single": {
           "label": "One request",
+          "unfinished": true,
           "note": "a failure near the end means starting again",
           "rows": [
             { "label": "1 GB, one request", "spans": [{ "s": 0, "d": 80000, "tone": "net", "text": "80 s" }, { "s": 80000, "d": 2000, "tone": "fail" }] },

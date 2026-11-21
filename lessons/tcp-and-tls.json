@@ -124,7 +124,7 @@
         { "from": "client", "to": "server", "label": "Bytes 1001 to 2000", "kind": "lost" },
         { "from": "client", "to": "server", "label": "Bytes 2001 to 3000", "set": { "server": "has 1 to 1000; 2001 to 3000 waiting" } },
         { "from": "server", "to": "client", "label": "ACK 1001: next byte I need", "kind": "refer" },
-        { "from": "client", "to": "client", "label": "1001 never acknowledged" },
+        { "from": "client", "to": "client", "label": "Bytes 1001 to 2000 never acknowledged" },
         { "from": "client", "to": "server", "label": "Bytes 1001 to 2000, again", "set": { "server": "has 1 to 3000" } },
         { "from": "server", "to": "client", "label": "ACK 3001", "kind": "answer" }
       ]
@@ -141,7 +141,7 @@
         { "label": "TLS handshake, in ms", "expr": "tls * rtt", "show": "{tls} round trips before the request can go", "format": "d0" },
         { "label": "Request and response, in ms", "expr": "rtt", "show": "1 round trip", "format": "d0" },
         { "key": "ttfb", "label": "First byte of the response, in ms", "expr": "(2 + tls) * rtt", "show": "(2 + {tls}) × {rtt}", "format": "d0", "tone": "accent" },
-        { "label": "Next request on the open connection", "expr": "rtt", "show": "1 round trip, no handshakes", "format": "d0" }
+        { "label": "Next request on the open connection, in ms", "expr": "rtt", "show": "1 round trip, no handshakes", "format": "d0" }
       ]
     }
   },

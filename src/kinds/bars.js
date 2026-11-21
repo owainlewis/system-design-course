@@ -53,9 +53,13 @@ KINDS.bars = {
       const c = it.tone === 'accent' ? COL.accent : it.tone === 'red' ? COL.red : it.tone === 'muted' ? COL.hair2 : COL.ink2;
       fitText(ctx, it.label, 8, y - (it.note && !narrow ? 6 : 0), labW - 4, { size: narrow ? 11.5 : 12.5, color: COL.ink });
       if (it.note && !narrow) fitText(ctx, it.note, 8, y + 8, labW - 4, { size: 10.5, font: MONO, color: COL.muted });
-      const bw = Math.max(2, (X(it.value) - x0) * g);
-      rr(ctx, x0, y - 7, bw, 14, 3); ctx.fillStyle = rgba(c, it.tone === 'muted' ? 1 : .85); ctx.fill();
-      if (g > .9) text(ctx, barFmt(it.value, kind), x0 + bw + 8, y + .5, { size: 11.5, font: MONO, weight: 500, color: COL.ink2 });
+      const bw = Math.max(3, (X(it.value) - x0) * g);
+      rr(ctx, x0, y - 7.5, bw, 15, 4);
+      const grad = ctx.createLinearGradient(x0, y, x0 + bw, y);
+      grad.addColorStop(0, rgba(c, it.tone === 'muted' ? 0.75 : 0.72));
+      grad.addColorStop(1, rgba(c, it.tone === 'muted' ? 1 : 0.96));
+      ctx.fillStyle = grad; ctx.fill();
+      if (g > .9) text(ctx, barFmt(it.value, kind), x0 + bw + 8, y + .5, { size: 11.5, font: MONO, weight: 500, color: it.tone === 'accent' ? COL.accent : COL.ink2 });
     });
     if (!wantStats) return null;
     const ratio = max / min;

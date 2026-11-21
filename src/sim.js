@@ -28,7 +28,7 @@ function makeLimiter(c) {
     case 'counter': { let w = -1, cur = 0, prev = 0;
       const peek = t => { const k = Math.floor(t / W); return k === w ? { k, p: prev, c: cur } : { k, p: k === w + 1 ? cur : 0, c: 0 }; };
       return {
-        decide(t) { const s = peek(t); w = s.k; prev = s.p; cur = s.c; const f = (t - w * W) / W; const est = prev * (1 - f) + cur; if (est < L) { cur++; return { ok: true }; } return { ok: false }; },
+        decide(t) { const s = peek(t); w = s.k; prev = s.p; cur = s.c; const f = (t - w * W) / W; const est = prev * (1 - f) + cur; if (est + 1 <= L) { cur++; return { ok: true }; } return { ok: false }; },
         view(t) { const s = peek(t); const f = (t - s.k * W) / W; return { type: 'counter', prev: s.p, cur: s.c, f, est: s.p * (1 - f) + s.c, limit: L, window: W }; } }; }
     case 'token': { const C = c.capacity ?? L, R = c.rate ?? L; let tok = C, last = 0; return {
       decide(t) { tok = Math.min(C, tok + (t - last) * R); last = t; if (tok >= 1) { tok -= 1; return { ok: true }; } return { ok: false }; },

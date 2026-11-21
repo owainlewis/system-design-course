@@ -39,7 +39,7 @@
           "p": "Requests are rarely spread evenly. A few items, such as the front page or a popular product, get most of the reads. A cache with room for those few items catches most requests, even though it holds a small part of the data."
         },
         {
-          "p": "When reads are spread evenly over every item, the same cache helps far less. Its hit ratio is about its size divided by the number of items."
+          "p": "When reads are spread evenly over every item, the same cache helps far less. Once warmed up, its hit ratio is about its size divided by the number of items."
         },
         {
           "h3": "Where caches live"

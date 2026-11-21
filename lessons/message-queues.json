@@ -22,8 +22,8 @@
         { "p": "The two sides no longer have to run at the same speed. During a burst the queue grows. When the burst ends, consumers keep working and the queue drains. With a durable queue that keeps messages until they are processed, nothing is lost, but messages wait longer while the queue is long." },
         { "figure": "burst", "caption": "Two consumers handle about 4 messages a second. For 3 seconds, 9 a second arrive. The queue grows, then drains after the burst." },
         { "h3": "Competing consumers" },
-        { "p": "Several consumers can read from one queue. Each message goes to only one of them, so adding consumers adds throughput. This is the usual way to scale background work." },
-        { "figure": "workers", "caption": "Three consumers share one queue. Each message is handed to one of them at a time. If a consumer fails before acknowledging it, the queue hands it to another." },
+        { "p": "Several consumers can read from one queue. Each message goes to only one of them, so adding consumers adds throughput. If a consumer fails before acknowledging a message, the queue hands it to another. This is the usual way to scale background work." },
+        { "figure": "workers", "caption": "Three consumers share one queue. Each message is handed to one of them at a time." },
         { "h3": "Acknowledging a message" },
         { "p": "A consumer that crashes halfway through a job must not lose it. So the queue doesn't delete a message when it hands it out. The consumer **acknowledges** it after the work is done, and only then is it removed." },
         { "p": "If no acknowledgement arrives in time, the queue hands the message to another consumer. This means a message can be processed twice, which the delivery guarantees lesson covers." },
@@ -79,7 +79,7 @@
       "still": 0.5,
       "controls": [
         { "type": "range", "key": "consumers", "label": "Consumers", "min": 1, "max": 6 },
-        { "type": "range", "key": "rate", "label": "Burst rate (messages a second)", "min": 2, "max": 14 }
+        { "type": "range", "key": "rate", "label": "Burst rate (messages a second)", "min": 4, "max": 14 }
       ],
       "ctrl": { "consumers": 2, "rate": 9 },
       "scene": { "period": 14, "start": 0, "end": 12, "schedule": [{ "from": 0, "to": 3, "rate": 3 }, { "from": 3, "to": 6, "rate": 9 }, { "from": 6, "to": 12, "rate": 2 }], "consumers": 2, "work": 0.5 }

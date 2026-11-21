@@ -59,7 +59,7 @@
           "p": "Every answer comes with a **TTL**, short for time to live. It is a number of seconds. The resolver may keep the answer in its cache for that long and reuse it for anyone who asks. [RFC 1034](https://www.rfc-editor.org/rfc/rfc1034) defines the TTL as a time limit on how long a record can be kept in a cache, and a TTL of 0 means don't cache it."
         },
         {
-          "p": "Caching is what makes DNS fast. With the answer cached, the second lookup is one round trip instead of four. The resolver also caches the referrals it got along the way, so when the address expires it can often go straight to example.com's server."
+          "p": "Caching is what makes DNS fast. If the resolver already holds the answer, a lookup takes one round trip instead of four (and zero if your own device cached it). The resolver also caches the referrals it got along the way, so when the address expires it can often go straight to example.com's server."
         },
         {
           "figure": "cached-lookup",
@@ -109,7 +109,7 @@
               ],
               [
                 "TXT",
-                "Free text, often used to prove you own a domain",
+                "Free text, used for email rules (SPF) and domain ownership checks",
                 "`\"v=spf1 -all\"`"
               ]
             ]
@@ -201,7 +201,10 @@
           "from": "root",
           "to": "resolver",
           "label": "Ask the .com servers",
-          "kind": "refer"
+          "kind": "refer",
+          "set": {
+            "resolver": "cached: .com servers"
+          }
         },
         {
           "from": "resolver",
@@ -212,7 +215,10 @@
           "from": "tld",
           "to": "resolver",
           "label": "Ask ns1.example.com",
-          "kind": "refer"
+          "kind": "refer",
+          "set": {
+            "resolver": "cached: ns1.example.com"
+          }
         },
         {
           "from": "resolver",

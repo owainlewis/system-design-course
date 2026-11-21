@@ -29,7 +29,7 @@
         { "p": "Facebook's memcache paper calls this a stale set, and fixes it with **leases**: on a miss the cache hands the reader a token, and a delete cancels it. A refill with a cancelled token is refused." },
         { "h3": "The stampede" },
         { "p": "When a popular key expires, every request for it misses at once. Each one queries the database for the same value while the first query is still running. This is a **cache stampede**, also called a thundering herd." },
-        { "p": "The fix is to let one request refill the key while the others wait for its result. This is called request coalescing. The memcache paper's leases do this too, by limiting how often the cache hands out a token for each key." },
+        { "p": "One fix is to let one request refill the key while the others wait for its result. This is called request coalescing. Facebook's leases avoid holding connections open: memcached hands out one lease token per key every few seconds and tells other readers to wait briefly and retry." },
         { "figure": "stampede", "caption": "30 requests a second for one key that expires every few seconds. Without coalescing, each expiry sends a burst of reads to the database. With it, one read." }
       ]
     },
@@ -89,8 +89,8 @@
     "stampede": {
       "kind": "cache",
       "scenarios": {
-        "herd": { "label": "No coalescing", "scene": { "period": 8, "rate": 30, "start": 0.3, "end": 7.6, "keys": 1, "skew": 0, "capacity": 1, "policy": "lru", "db": 0.6, "ttl": 3, "warm": true, "coalesce": false } },
-        "one": { "label": "Coalesce misses", "scene": { "period": 8, "rate": 30, "start": 0.3, "end": 7.6, "keys": 1, "skew": 0, "capacity": 1, "policy": "lru", "db": 0.6, "ttl": 3, "warm": true, "coalesce": true } }
+        "herd": { "label": "No coalescing", "scene": { "period": 10, "rate": 30, "start": 0.3, "end": 9.2, "keys": 1, "skew": 0, "capacity": 1, "policy": "lru", "db": 0.35, "ttl": 2.5, "warm": true, "coalesce": false } },
+        "one": { "label": "Coalesce misses", "scene": { "period": 10, "rate": 30, "start": 0.3, "end": 9.2, "keys": 1, "skew": 0, "capacity": 1, "policy": "lru", "db": 0.35, "ttl": 2.5, "warm": true, "coalesce": true } }
       }
     }
   },

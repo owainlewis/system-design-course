@@ -37,9 +37,17 @@ KINDS.flow = {
     actors.forEach(a => {
       const x = X[a.id], busy = cur >= 0 && t < times[cur] + FLOW_MOVE + FLOW_HOLD && (steps[cur].from === a.id || steps[cur].to === a.id);
       ctx.save(); ctx.strokeStyle = COL.hair2; ctx.setLineDash([2, 4]); line(ctx, { x, y: 62 }, { x, y: h - 16 }); ctx.restore();
-      node(ctx, x, 30, a.icon || 'server', null, null, { stroke: busy ? COL.ink2 : null });
-      text(ctx, narrow ? (a.short || a.label) : a.label, x, 66, { align: 'center', size: narrow ? 11 : 12, color: COL.ink2 });
-      if (state[a.id]) { const s = narrow ? state[a.id].replace(/^cached: /, '') : state[a.id]; fitText(ctx, s, x, 82, Math.min(colW - 8, 2 * Math.min(x, w - x) - 6), { align: 'center', size: narrow ? 10 : 11, font: MONO, color: COL.accent }); }
+      node(ctx, x, 30, a.icon || 'server', null, null, { stroke: busy ? COL.accent : null });
+      text(ctx, narrow ? (a.short || a.label) : a.label, x, 66, { align: 'center', size: narrow ? 11 : 12, weight: 500, color: COL.ink });
+      if (state[a.id]) {
+        const s = narrow ? state[a.id].replace(/^cached: /, '') : state[a.id];
+        const maxW = Math.min(colW - 8, 2 * Math.min(x, w - x) - 8);
+        ctx.font = `500 ${narrow ? 10 : 10.5}px ${MONO}`;
+        const pw = Math.min(maxW, ctx.measureText(s).width + 12);
+        rr(ctx, x - pw / 2, 74, pw, 17, 4); ctx.fillStyle = rgba(COL.accent, .12); ctx.fill();
+        ctx.strokeStyle = rgba(COL.accent, .35); ctx.stroke();
+        fitText(ctx, s, x, 83, maxW - 8, { align: 'center', size: narrow ? 10 : 10.5, font: MONO, weight: 500, color: COL.accent });
+      }
     });
 
     // messages
@@ -47,12 +55,12 @@ KINDS.flow = {
     for (let i = 0; i <= cur; i++) {
       const s = steps[i], y = headH + i * rowH + 26, x0 = X[s.from], x1 = X[s.to], dir = Math.sign(x1 - x0) || 1;
       const prog = i === cur ? clamp((t - times[i]) / FLOW_MOVE) : 1;
-      const c = colOf(s), old = i < cur, cc = old ? rgba(c, .55) : c;
+      const c = colOf(s), old = i < cur, cc = old ? rgba(c, .58) : c;
+      if (!old) { rr(ctx, 8, y - 22, w - 16, rowH - 4, 6); ctx.fillStyle = rgba(c, .055); ctx.fill(); }
       const lab = s.label.replace(/\*\*|`/g, '');
       const labStyle = { size: narrow ? 10.5 : 12, font: narrow ? MONO : SANS, weight: old ? 400 : 500, color: old ? COL.muted : (s.kind === 'answer' ? COL.accent : (s.kind === 'fail' || s.kind === 'lost') ? COL.red : COL.ink) };
-      ctx.strokeStyle = cc; ctx.lineWidth = 1.2;
+      ctx.strokeStyle = cc; ctx.lineWidth = old ? 1.2 : 1.6;
       if (s.from === s.to) {
-        // local work: a bracket to the right of the lifeline, drawn as it progresses
         const bw = 14, top = y - 12, bot = y + 8, right = x0 + bw * ease(prog);
         ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(right, top); if (prog > .5) { ctx.lineTo(right, lerp(top, bot, ease((prog - .5) * 2))); } if (prog >= 1) ctx.lineTo(x0 + 4, bot); ctx.stroke();
         if (prog >= 1) { ctx.fillStyle = cc; ctx.beginPath(); ctx.moveTo(x0, bot); ctx.lineTo(x0 + 7, bot - 3.5); ctx.lineTo(x0 + 7, bot + 3.5); ctx.closePath(); ctx.fill(); }
@@ -62,16 +70,15 @@ KINDS.flow = {
         const lost = s.kind === 'lost', end = lost ? lerp(x0, x1, .55) : x1, xe = lerp(x0, end, ease(prog));
         if (s.kind === 'refer') ctx.setLineDash([4, 3]);
         line(ctx, { x: x0, y }, { x: xe, y }); ctx.setLineDash([]);
-        if (prog >= 1 && lost) { ctx.lineWidth = 1.5; line(ctx, { x: end - 4, y: y - 4 }, { x: end + 4, y: y + 4 }); line(ctx, { x: end + 4, y: y - 4 }, { x: end - 4, y: y + 4 }); }
-        else if (prog >= 1) { ctx.fillStyle = cc; ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 - dir * 7, y - 3.5); ctx.lineTo(x1 - dir * 7, y + 3.5); ctx.closePath(); ctx.fill(); }
-        else dot(ctx, xe, y, 3.4, c);
-        // labels may run past the arrow's ends when the arrow is short; keep them inside the canvas
+        if (prog >= 1 && lost) { ctx.lineWidth = 1.6; line(ctx, { x: end - 4.5, y: y - 4.5 }, { x: end + 4.5, y: y + 4.5 }); line(ctx, { x: end + 4.5, y: y - 4.5 }, { x: end - 4.5, y: y + 4.5 }); }
+        else if (prog >= 1) { ctx.fillStyle = cc; ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 - dir * 7.5, y - 3.8); ctx.lineTo(x1 - dir * 7.5, y + 3.8); ctx.closePath(); ctx.fill(); }
+        else packet(ctx, xe, y, 3.6, c);
         ctx.font = `${labStyle.weight} ${labStyle.size}px ${labStyle.font}`;
         const lw = Math.min(ctx.measureText(lab).width, w - 40), mid = clamp((x0 + x1) / 2, 28 + lw / 2, w - 8 - lw / 2);
-        fitText(ctx, lab, mid, y - 10, w - 40, { ...labStyle, align: 'center' });
+        fitText(ctx, lab, mid, y - 11, w - 40, { ...labStyle, align: 'center' });
       }
       ctx.lineWidth = 1;
-      text(ctx, String(i + 1), narrow ? 10 : 18, y, { size: 10.5, font: MONO, color: old ? COL.hair2 : COL.muted });
+      text(ctx, String(i + 1), narrow ? 12 : 20, y, { size: 10.5, font: MONO, color: old ? COL.hair2 : COL.accent, weight: old ? 400 : 600 });
     }
     if (!wantStats) return null;
     const C = typeof f.def.counter === 'string' ? { from: f.def.counter, not: 'laptop', label: 'questions the resolver sent' } : f.def.counter;

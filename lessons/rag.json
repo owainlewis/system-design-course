@@ -58,8 +58,9 @@
         {
           "list": [
             "**Chunks lose context.** A chunk saying \"the limit is 30 days\" doesn't say what the limit is for. Add the document title or a short summary to each chunk before embedding.",
-            "**Vectors miss exact terms.** Product codes and names are better matched by keyword search. Run both and merge the results.",
-            "**The first results aren't the best.** A **reranker**, a model that scores each question and chunk pair, can reorder a larger set and keep the best few.",
+            "**Vectors miss exact terms.** Product codes and names are better matched by keyword search such as BM25. Run both and merge the ranked lists with a method like Reciprocal Rank Fusion (RRF).",
+            "**The first results aren't the best.** A **reranker**, usually a cross-encoder that reads each question and chunk together, can reorder a larger set and keep the best few.",
+            "**Permissions and updates lag.** Filter results by the caller's access rights before sending chunks to the model, and delete stale chunks when source documents change.",
             "**More context isn't always better.** Models can miss facts placed in the middle of a long prompt. Send fewer, better chunks."
           ]
         },
@@ -300,7 +301,7 @@
         {
           "label": "Input cost of a million questions ($)",
           "expr": "total * price",
-          "show": "{total} tokens × {price} per million",
+          "show": "{total} tokens × 1 million questions × ${price} per million",
           "format": "d0",
           "tone": "accent"
         }

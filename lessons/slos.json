@@ -24,7 +24,7 @@
       "blocks": [
         {
           "list": [
-            "**SLI**, service level indicator. A measurement of what users experience, usually a ratio: good requests divided by all requests. For example, requests that succeeded in under 300 ms.",
+            "**SLI**, service level indicator. A measurement of what users experience, usually a ratio: good requests divided by valid requests. For example, requests that succeeded in under 300 ms.",
             "**SLO**, service level objective. The target for an SLI over a window, such as 99.9% of requests good over 30 days.",
             "**SLA**, service level agreement. A promise to customers with a penalty, such as a refund. It is set looser than the SLO, so you hear about trouble before you owe money."
           ]
@@ -47,7 +47,7 @@
         },
         {
           "figure": "budget",
-          "caption": "The error budget for a 30-day window, as time and as failed requests."
+          "caption": "The error budget for a 30-day window, as failed requests and as equivalent full-outage time assuming even traffic."
         },
         {
           "h3": "Dependencies multiply"
@@ -63,7 +63,7 @@
           "h3": "Alert on the budget"
         },
         {
-          "p": "Alert when the budget is being spent fast, not on every error. The rate of spending is the **burn rate**. A burn rate of 1 uses the whole budget in exactly the window. A rate of 14.4 spends 2% of a 30-day budget in one hour, which is worth waking someone up for."
+          "p": "Alert when the budget is being spent fast, not on every error. The rate of spending is the **burn rate**. A burn rate of 1 uses the whole budget in exactly the window. A rate of 14.4 spends 2% of a 30-day budget in one hour, which is worth paging on when confirmed by a short window such as 5 minutes."
         }
       ]
     },
@@ -258,7 +258,7 @@
           "key": "all",
           "label": "Availability of the whole request (%)",
           "expr": "Math.pow(a / 100, n) * 100",
-          "show": "{a}% multiplied {n} times",
+          "show": "{a}% to the power {n}",
           "format": "g",
           "tone": "accent"
         },

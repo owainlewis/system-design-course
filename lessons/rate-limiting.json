@@ -65,8 +65,8 @@
           "p": "A rejected request gets status `429 Too Many Requests`, defined in [RFC 6585](https://www.rfc-editor.org/rfc/rfc6585#section-4). The response may include a `Retry-After` header saying how many seconds to wait. The RFC does not say how to identify the client or how to count requests. The rest of this lesson covers that."
         },
         {
-          "code": "HTTP/1.1 429 Too Many Requests\nRetry-After: 2\nRateLimit-Policy: \"default\";q=5;w=1\nRateLimit: \"default\";r=0;t=2",
-          "caption": "A rejected request. The two RateLimit headers come from an IETF draft that is not yet a standard. They tell the client its quota (q requests per w seconds), how many requests it has left (r), and for how many more seconds that applies (t)."
+          "code": "HTTP/1.1 429 Too Many Requests\nRetry-After: 1\nRateLimit-Policy: \"default\";q=5;w=1\nRateLimit: \"default\";r=0;t=1",
+          "caption": "A rejected request. The two RateLimit headers come from an IETF draft that is not yet a standard. They tell the client its quota (q requests per w seconds), how many requests it has left (r), and seconds until the quota resets (t)."
         }
       ]
     },
@@ -81,7 +81,7 @@
           "h3": "Fixed window"
         },
         {
-          "p": "Keep one counter per key. Each request adds one. Once the counter passes the limit, reject until the window ends. When the second is up, the counter resets to zero."
+          "p": "Keep one counter per key. Each request adds one. Once the counter reaches the limit, reject until the window ends. When the second is up, the counter resets to zero."
         },
         {
           "figure": "fixed-window",
@@ -213,7 +213,7 @@
           "p": "Real APIs run on more than one server behind a load balancer. If each server keeps its own count, a key limited to **6 a second** gets 6 on each of three servers: **18 in total**."
         },
         {
-          "p": "The fix is to keep the count in one shared store that every server checks, usually Redis. The limit then holds across all the servers. The price is one extra network call per request, and a decision about what to do if the store is down: let requests through, or reject them."
+          "p": "The fix is to keep the count in one shared store that every server updates atomically, usually Redis with a Lua script. The limit then holds across all the servers. The price is one extra network call per request, and a decision about what to do if the store is down: let requests through, or reject them."
         },
         {
           "figure": "distributed",
@@ -348,30 +348,30 @@
           {
             "client": "app",
             "type": "burst",
-            "at": 1.72,
+            "at": 1.76,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 2.03,
+            "at": 2.02,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 4.72,
+            "at": 4.76,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 5.03,
+            "at": 5.02,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           }
         ]
       }
@@ -388,30 +388,30 @@
           {
             "client": "app",
             "type": "burst",
-            "at": 1.72,
+            "at": 1.76,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 2.03,
+            "at": 2.02,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 4.72,
+            "at": 4.76,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 5.03,
+            "at": 5.02,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           }
         ]
       }
@@ -428,30 +428,30 @@
           {
             "client": "app",
             "type": "burst",
-            "at": 1.72,
+            "at": 1.76,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 2.03,
+            "at": 2.02,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 4.72,
+            "at": 4.76,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           },
           {
             "client": "app",
             "type": "burst",
-            "at": 5.03,
+            "at": 5.02,
             "count": 5,
-            "spread": 0.24
+            "spread": 0.2
           }
         ]
       }

@@ -37,7 +37,7 @@
       "blocks": [
         { "list": [
           "**TCP has backpressure built in.** The receiver advertises a window, the bytes it can accept. When its buffer fills the window shrinks and the sender stops, as [RFC 9293](https://www.rfc-editor.org/rfc/rfc9293) describes.",
-          "**Node.js streams signal it.** In Node.js, `write()` returns `false` when a stream's buffer is full, and the writer should wait for the `drain` event. See the [backpressuring in streams](https://nodejs.org/en/learn/modules/backpressuring-in-streams) guide.",
+          "**Node.js streams signal it.** In Node.js, `write()` returns `false` when a stream's buffer hits its high-water mark, telling the writer to wait for the `drain` event. See the [backpressuring in streams](https://nodejs.org/en/learn/modules/backpressuring-in-streams) guide.",
           "**Reactive Streams makes the consumer ask.** In [Reactive Streams](https://www.reactive-streams.org/), a subscriber requests a number of items, and the publisher never sends more than requested.",
           "**HTTP APIs reject.** A web service can't block its clients for long. It returns `429` or `503`, often with `Retry-After`, as in the rate limiting and load shedding lessons."
         ] }
@@ -76,9 +76,9 @@
       "ctrl": { "arrive": 1200, "done": 1000, "mins": 10 },
       "formats": { "backlog": "big" },
       "rows": [
-        { "key": "grow", "label": "Queue grows by, per second", "expr": "Math.max(0, arrive - done)", "show": "{arrive} − {done}", "format": "d0" },
-        { "key": "backlog", "label": "Messages waiting at the end", "expr": "grow * mins * 60", "show": "{grow} × {mins} minutes", "format": "big" },
-        { "label": "Wait for the newest message (s)", "expr": "backlog / done", "show": "{backlog} ÷ {done} a second", "format": "d0", "tone": "accent" }
+        { "key": "grow", "label": "Queue grows by, per second", "expr": "Math.max(0, arrive - done)", "show": "max(0, {arrive} − {done})", "format": "d0" },
+        { "key": "backlog", "label": "Messages waiting at the end", "expr": "grow * mins * 60", "show": "{grow}/s × {mins} min × 60 s", "format": "big" },
+        { "label": "Wait for the newest message", "expr": "backlog / done", "show": "{backlog} ÷ {done} a second", "format": "duration", "tone": "accent" }
       ]
     }
   },

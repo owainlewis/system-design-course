@@ -94,7 +94,7 @@
           "steps": [
             { "from": "client", "to": "leader", "label": "SET name = Ann", "set": { "leader": "name: Ann" } },
             { "from": "leader", "to": "follower", "label": "Change: name = Ann", "set": { "follower": "name: Ann" } },
-            { "from": "follower", "to": "leader", "label": "Have it", "kind": "refer" },
+            { "from": "follower", "to": "leader", "label": "Applied", "kind": "refer" },
             { "from": "leader", "to": "client", "label": "OK", "kind": "answer" },
             { "from": "client", "to": "follower", "label": "GET name" },
             { "from": "follower", "to": "client", "label": "Ann", "kind": "answer" }
@@ -102,7 +102,7 @@
         },
         "ryw": {
           "label": "Async, read from leader",
-          "note": "read-your-writes: this user's reads go to the leader for a while",
+          "note": "read-your-writes: send this user's reads to the leader or a caught-up follower",
           "state": { "leader": "name: Ana", "follower": "name: Ana" },
           "steps": [
             { "from": "client", "to": "leader", "label": "SET name = Ann", "set": { "leader": "name: Ann" } },
@@ -143,7 +143,7 @@
       "ctrl": { "n": 3, "w": 2, "r": 1 },
       "rows": [
         { "label": "Replicas each read overlaps with the latest write", "expr": "Math.max(0, w + r - n)", "show": "W + R − N, when positive", "format": "d0", "tone": "accent" },
-        { "label": "Every read reaches the latest completed write?", "expr": "w + r > n ? 1 : 0", "show": "1 means yes: W + R > N", "format": "d0" },
+        { "label": "Every read reaches the latest completed write?", "expr": "w + r > n ? 1 : 0", "show": "yes when W + R > N", "format": "bool" },
         { "label": "Replicas that can be down for writes", "expr": "Math.max(0, n - w)", "show": "N − W", "format": "d0" },
         { "label": "Replicas that can be down for reads", "expr": "Math.max(0, n - r)", "show": "N − R", "format": "d0" }
       ]

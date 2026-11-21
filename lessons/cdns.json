@@ -23,11 +23,11 @@
         { "p": "The CDN has to send each user to a nearby edge. One way is DNS: the CDN's DNS servers answer with the address of an edge near the user. Another is **anycast**, where many edges announce the same IP address and the internet's routing delivers each packet to one of them, usually a nearby one but not always the closest, as [Cloudflare explains](https://www.cloudflare.com/learning/cdn/glossary/anycast-network/)." },
         { "h3": "Hits and misses" },
         { "p": "When the edge has a fresh copy, it answers at once. That is a **cache hit**. When it doesn't, it fetches the response from the origin, sends it on, and keeps a copy. That is a **cache miss**." },
-        { "figure": "hit-miss", "caption": "A user in Sydney requests an image twice. The first request goes all the way to the origin. The second is answered by the edge in Sydney." },
+        { "figure": "hit-miss", "caption": "Two users in Sydney request the same image. The first request goes all the way to the origin. The second is answered by the edge in Sydney." },
         { "figure": "distance", "caption": "Loading one image from Sydney, from the origin in Virginia and from a nearby edge. Assumes a 200 ms round trip to Virginia and 10 ms to the edge." },
         { "h3": "How long a copy stays fresh" },
         { "p": "The origin controls caching with the `Cache-Control` response header, defined in [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111). `max-age=3600` lets any cache reuse the response for an hour. `s-maxage` sets a separate time for shared caches such as a CDN. `no-store` forbids caching." },
-        { "p": "Once a copy expires, the edge can ask the origin whether it changed, instead of downloading it again. If it hasn't, the origin answers `304 Not Modified` with no body." }
+        { "p": "Once a copy expires, the edge can revalidate it using its `ETag` or `Last-Modified` header instead of downloading it again. If nothing changed, the origin answers `304 Not Modified` with no body." }
       ]
     },
     {
@@ -68,17 +68,17 @@
       "kind": "flow",
       "still": 0.97,
       "actors": [
-        { "id": "user", "label": "User in Sydney", "short": "User", "icon": "browser" },
+        { "id": "user", "label": "Users in Sydney", "short": "Users", "icon": "browser" },
         { "id": "edge", "label": "Edge in Sydney", "short": "Edge", "icon": "globe" },
         { "id": "origin", "label": "Origin in Virginia", "short": "Origin", "icon": "server" }
       ],
       "steps": [
-        { "from": "user", "to": "edge", "label": "GET /logo.png" },
+        { "from": "user", "to": "edge", "label": "User 1: GET /logo.png" },
         { "from": "edge", "to": "edge", "label": "Not cached: a miss" },
         { "from": "edge", "to": "origin", "label": "GET /logo.png" },
         { "from": "origin", "to": "edge", "label": "200, max-age=86400", "kind": "answer", "set": { "edge": "cached: logo.png, 1 day" } },
         { "from": "edge", "to": "user", "label": "200 OK", "kind": "answer" },
-        { "from": "user", "to": "edge", "label": "GET /logo.png" },
+        { "from": "user", "to": "edge", "label": "User 2: GET /logo.png" },
         { "from": "edge", "to": "user", "label": "200 OK, a hit", "kind": "answer" }
       ],
       "counter": { "from": "edge", "to": "origin", "label": "requests that crossed the ocean" }

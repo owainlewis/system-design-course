@@ -21,7 +21,7 @@
         { "p": "An **event log** is an append-only list of events. Producers add events to the end. Nothing is changed in place, and reading an event doesn't remove it. The log keeps events for a set time, such as a week, or forever." },
         { "p": "Each event has an **offset**, its position in the log. A consumer keeps track of the offset it has reached. To read again from the start, it moves its offset back." },
         { "h3": "Partitions" },
-        { "p": "One log on one machine has a limit. So a **topic** is split into **partitions**, separate logs that can live on different machines. Each event goes to a partition chosen by a hash of its key, such as the user ID." },
+        { "p": "One log on one machine has a limit. So a **topic** is split into **partitions**, separate logs that can live on different machines. When an event has a key, such as a user ID, a hash of that key picks its partition." },
         { "p": "Order is kept within a partition, not across the topic. Events with the same key always land in the same partition, so all of one user's events stay in order." },
         { "h3": "Consumer groups" },
         { "p": "A **consumer group** is one reader of the topic, such as billing. It keeps its own offset in each partition. Two groups read the same events without affecting each other. Inside a group, each partition is read by one consumer, so the number of partitions limits how many consumers a group can use." },
@@ -82,7 +82,7 @@
       "ctrl": { "rate": 10, "size": 1000, "days": 7, "copies": 3 },
       "formats": { "perDay": "bytes", "kept": "bytes" },
       "rows": [
-        { "key": "perDay", "label": "New data a day", "expr": "rate * 1000 * size * 86400", "show": "{rate}k events × {size} bytes × 86,400 s", "format": "bytes" },
+        { "key": "perDay", "label": "New data a day", "expr": "rate * 1000 * size * 86400", "show": "{rate}k events/s × {size} bytes × 86,400 s", "format": "bytes" },
         { "key": "kept", "label": "Data kept", "expr": "perDay * days", "show": "{perDay} × {days} days", "format": "bytes" },
         { "label": "Disk across the cluster", "expr": "kept * copies", "show": "{kept} × {copies} copies", "format": "bytes", "tone": "accent" }
       ]

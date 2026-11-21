@@ -11,9 +11,10 @@ function tlScenario(f) {
   return d.scenarios[f.ctrl.scenario ?? Object.keys(d.scenarios)[0]];
 }
 const tlSpans = r => r.spans || [{ s: r.s, d: r.d, tone: r.tone, text: r.text }];
-const tlEnd = rows => Math.max(...rows.flatMap(r => tlSpans(r).map(s => s.s + s.d)));
+const tlEnd = rows => Math.max(...rows.filter(r => !r.background).flatMap(r => tlSpans(r).map(s => s.s + s.d)));
+const tlSpanMax = rows => Math.max(...rows.flatMap(r => tlSpans(r).map(s => s.s + s.d)));
 // The axis covers the longest scenario, so switching scenarios compares like with like.
-const tlAxis = f => f.def.axis || (f.def.scenarios ? Math.max(...Object.values(f.def.scenarios).map(s => tlEnd(s.rows))) : tlEnd(f.def.rows));
+const tlAxis = f => f.def.axis || (f.def.scenarios ? Math.max(...Object.values(f.def.scenarios).map(s => tlSpanMax(s.rows))) : tlSpanMax(f.def.rows));
 
 function tlFmt(v, unit) { return unit === 'ms' && v >= 1000 ? `${fmt(v / 1000, v % 1000 ? 1 : 0)} s` : `${fmt(v, v < 10 && v % 1 ? 1 : 0)} ${unit}`; }
 function tlTicks(max, n = 6) { const raw = max / Math.max(2, Math.min(6, n)), p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; }
@@ -53,14 +54,15 @@ KINDS.timeline = {
     }
     rows.forEach((r, i) => {
       const y = top + i * rowH + rowH / 2, ind = (r.depth || 0) * 12;
-      fitText(ctx, r.label, 8 + ind, y, labW - ind, { size: narrow ? 11 : 12, color: COL.ink2 });
+      if (i % 2 === 1) { ctx.fillStyle = rgba(COL.ink, .025); ctx.fillRect(8, top + i * rowH + 1, w - 16, rowH - 2); }
+      fitText(ctx, r.label, 10 + ind, y, labW - ind - 4, { size: narrow ? 11 : 12, weight: r.depth ? 400 : 500, color: r.depth ? COL.ink2 : COL.ink });
       for (const sp of tlSpans(r)) {
         const a = X(sp.s), b = X(sp.s + sp.d), fill = clamp((now - sp.s) / sp.d), c = toneCol(sp.tone);
-        rr(ctx, a, y - 8, Math.max(2, b - a), 16, 3); ctx.strokeStyle = sp.tone === 'wait' ? COL.hair2 : rgba(c, .45); ctx.lineWidth = 1; ctx.stroke();
+        rr(ctx, a, y - 8.5, Math.max(2, b - a), 17, 4); ctx.strokeStyle = sp.tone === 'wait' ? COL.hair2 : rgba(c, .45); ctx.lineWidth = 1; ctx.stroke();
         if (fill > 0) {
-          ctx.save(); rr(ctx, a, y - 8, Math.max(2, b - a), 16, 3); ctx.clip();
-          ctx.fillStyle = sp.tone === 'wait' ? COL.hair : rgba(c, sp.tone === 'net' ? .3 : .85); ctx.fillRect(a, y - 8, (b - a) * fill, 16);
-          if (sp.tone === 'stall') { ctx.strokeStyle = rgba(COL.red, .9); for (let k = a - 16; k < a + (b - a) * fill; k += 6) line(ctx, { x: k, y: y + 8 }, { x: k + 16, y: y - 8 }); }
+          ctx.save(); rr(ctx, a, y - 8.5, Math.max(2, b - a), 17, 4); ctx.clip();
+          ctx.fillStyle = sp.tone === 'wait' ? COL.hair : rgba(c, sp.tone === 'net' ? .35 : .88); ctx.fillRect(a, y - 8.5, (b - a) * fill, 17);
+          if (sp.tone === 'stall') { ctx.strokeStyle = rgba(COL.red, .92); for (let k = a - 17; k < a + (b - a) * fill; k += 6) line(ctx, { x: k, y: y + 8.5 }, { x: k + 17, y: y - 8.5 }); }
           ctx.restore();
         }
         if (sp.text && fill >= 1) {
@@ -69,9 +71,14 @@ KINDS.timeline = {
         }
       }
     });
-    if (!done) { ctx.strokeStyle = rgba(COL.ink, .5); line(ctx, { x: X(now), y: top - 4 }, { x: X(now), y: axY }); }
+    if (!done) {
+      const px = X(now);
+      ctx.strokeStyle = rgba(COL.accent, .75); ctx.lineWidth = 1.2; line(ctx, { x: px, y: top - 4 }, { x: px, y: axY }); ctx.lineWidth = 1;
+      ctx.fillStyle = COL.accent; ctx.beginPath(); ctx.moveTo(px, top - 1); ctx.lineTo(px - 3.5, top - 6); ctx.lineTo(px + 3.5, top - 6); ctx.closePath(); ctx.fill();
+    }
     if (!wantStats) return null;
     const end = tlEnd(rows);
-    return `<span>${done ? 'total' : 'time'} ${tlFmt(Math.min(now, end), unit)}</span>` + (sc.note ? `<span>${sc.note}</span>` : '');
+    const totalLabel = done ? (sc.unfinished ? `past ${tlFmt(end, unit)} (still retrying)` : `total ${tlFmt(end, unit)}`) : `time ${tlFmt(Math.min(now, end), unit)}`;
+    return `<span>${totalLabel}</span>` + (sc.note ? `<span>${sc.note}</span>` : '');
   }
 };

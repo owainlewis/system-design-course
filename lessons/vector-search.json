@@ -29,7 +29,7 @@
           "p": "An **embedding model** turns a piece of text into a **vector**: a list of numbers, often several hundred to a few thousand long. The model is trained so that texts with similar meaning get vectors that point in similar directions."
         },
         {
-          "p": "To search, embed every document once and store the vectors. At query time, embed the query and find the stored vectors closest to it. Closeness is usually measured by **cosine similarity**, the cosine of the angle between two vectors, or by straight-line distance."
+          "p": "To search, embed every document once and store the vectors. At query time, embed the query and find the stored vectors closest to it. Closeness is usually measured by **cosine similarity**, the cosine of the angle between two vectors, or by straight-line distance. When vectors are unit-normalized to length 1, both give the exact same nearest-neighbour order."
         },
         {
           "p": "The figures here draw vectors in two dimensions so you can see them. Real ones have hundreds of dimensions, but the idea is the same."
@@ -54,14 +54,14 @@
           "p": "Searching more clusters finds more of the true neighbours and costs more time. The share of true neighbours found is called **recall**. Every ANN index has a setting that trades recall for speed."
         },
         {
-          "p": "Another common index, **HNSW**, links each vector to a few near neighbours in a layered graph. A search starts at the top layer and walks the graph toward the query. It is fast and accurate, and uses extra memory for the links."
+          "p": "Another common index, **HNSW**, builds a layered graph like a skip list. Every vector sits in the bottom layer, while upper layers hold sparser subsets with long-range links. A search starts at the sparse top layer for big jumps and walks down to the dense bottom layer. It is fast and accurate, and uses extra RAM for the links."
         },
         {
           "h3": "Memory"
         },
         {
           "figure": "memory",
-          "caption": "Memory to hold the raw vectors, before any index. Each number is a 4-byte float."
+          "caption": "Memory to hold the raw vectors, before any index. Each number is a 4-byte float. An HNSW graph adds extra RAM for links, while quantization (such as int8 or binary) can cut vector memory by 4 to 32 times."
         }
       ]
     },
@@ -242,7 +242,7 @@
         "dims": 1536
       },
       "formats": {
-        "one": "bytes"
+        "one": "d0"
       },
       "rows": [
         {
@@ -255,7 +255,7 @@
         {
           "label": "All vectors",
           "expr": "one * n * 1e6",
-          "show": "{one} × {n} million",
+          "show": "{one} bytes × {n} million",
           "format": "bytes",
           "tone": "accent"
         }
@@ -270,7 +270,7 @@
       "type": "docs"
     },
     {
-      "label": "Malkov and Yashunin: Efficient and robust approximate nearest neighbor search using HNSW graphs",
+      "label": "Malkov and Yashunin: Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs",
       "url": "https://arxiv.org/abs/1603.09320",
       "note": "The HNSW paper.",
       "type": "paper"

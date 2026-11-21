@@ -28,7 +28,7 @@
             ["A million requests a day", "11.6 per second", "about 10 per second"]
           ]
         } },
-        { "p": "Rounding a day to 100,000 seconds makes the arithmetic easy and errs on the low side by 14%. That is well inside the margin of any estimate." },
+        { "p": "Rounding a day to 100,000 seconds makes the arithmetic easy. When you divide daily totals by 100,000 to get requests per second, the result is 14% low, which is well inside the margin of any estimate." },
         { "h3": "Requests per second" },
         { "p": "Start from daily active users. Multiply by the actions each user takes in a day. Divide by the seconds in a day to get the average rate." },
         { "p": "Traffic is not flat. More people use a service in the evening than at 4 am. Multiply the average by a **peak factor** to size for the busiest hour. A factor of 2 to 3 is a common starting assumption. Replace it with real data once you have some." },
@@ -38,7 +38,7 @@
         { "figure": "storage", "caption": "Storage for uploaded photos over several years, with 3 copies of each photo." },
         { "h3": "Concurrent requests" },
         { "p": "Servers are limited by how many requests they handle at the same time, not only by the rate. **Little's law** connects the two: the average number of requests in the system equals the arrival rate times the average time each one spends there." },
-        { "p": "At 2,000 requests a second and 200 ms per request, about 400 requests are in progress at any moment. [Little's 1961 paper](https://doi.org/10.1287/opre.9.3.383) proved that this holds for any queue in a steady state, whatever the pattern of arrivals." }
+        { "p": "At 2,000 requests a second and 200 ms per request, an average of 400 requests are in progress. [Little's 1961 paper](https://doi.org/10.1287/opre.9.3.383) proved that this holds for any queue in a steady state, whatever the pattern of arrivals." }
       ]
     },
     {
@@ -48,7 +48,7 @@
         { "list": [
           "**Write your assumptions down.** Each input is a guess. Writing it down lets someone else challenge the guess instead of the arithmetic.",
           "**Look for the biggest number.** Usually one quantity dominates: reads far outnumber writes, or video dwarfs everything else in storage. Design around that one.",
-          "**Check against the latency numbers.** Say each request reads 1 MB from a spinning disk, and you need 1,000 requests a second. The latency lesson puts 1 MB from disk at 30 ms, so one disk manages about 33.",
+          "**Check against the latency numbers.** Say each request reads 1 MB from a spinning disk, and you need 1,000 requests a second. A 10 ms seek plus a 20 ms sequential read is 30 ms, so one disk manages about 33.",
           "**Jeff Dean recommends it.** His [2009 talk](https://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf) presents back-of-the-envelope calculations as a core design skill, alongside the latency numbers."
         ] }
       ]
@@ -118,7 +118,7 @@
       "rows": [
         { "key": "readPeak", "label": "Peak photo views per second", "expr": "users * 1e6 * views / 1e5 * 3", "show": "{users} million × {views} ÷ 100,000 × 3 for the peak", "format": "d0" },
         { "key": "writePeak", "label": "Peak uploads per second", "expr": "users * 1e6 * uploads / 100 / 1e5 * 3", "show": "{users} million × {uploads}% ÷ 100,000 × 3 for the peak", "format": "d0" },
-        { "label": "Views for every upload", "expr": "readPeak / writePeak", "show": "reads dominate, so design for reads", "format": "d0" },
+        { "label": "Views for every upload", "expr": "readPeak / writePeak", "show": "read-to-write ratio", "format": "d0" },
         { "label": "Storage for one year, 2 MB photos, 3 copies", "expr": "users * 1e6 * uploads / 100 * 2e6 * 365 * 3", "show": "uploads a day × 2 MB × 365 × 3", "format": "bytes" },
         { "label": "Requests in progress at peak", "expr": "(readPeak + writePeak) * ms / 1000", "show": "peak rate × {ms} ms, by Little's law", "format": "d0", "tone": "accent" }
       ]

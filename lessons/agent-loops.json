@@ -75,7 +75,7 @@
             "**The pattern has a paper.** [ReAct](https://arxiv.org/abs/2210.03629) showed models alternating between reasoning and actions such as searches, using each result to choose the next step.",
             "**Tool use is in the APIs.** Model APIs take a schema for each tool's input and return structured tool calls. See Anthropic's [tool use overview](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview).",
             "**Tools can be shared.** The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard for exposing tools and data to models, so one tool server works with many apps.",
-            "**Guard the side effects.** Treat tool requests as untrusted input. Check permissions, ask a person before anything that can't be undone, and log every call."
+            "**Guard the side effects.** Treat tool requests as untrusted input, because external tool results can contain prompt injections. Check permissions, ask a person before anything that can't be undone, and log every call."
           ]
         }
       ]
@@ -160,7 +160,7 @@
             {
               "from": "app",
               "to": "llm",
-              "label": "Conversation + result"
+              "label": "Conversation + tools + result"
             },
             {
               "from": "llm",
@@ -182,7 +182,7 @@
             {
               "from": "app",
               "to": "llm",
-              "label": "Conversation + result"
+              "label": "Conversation + tools + result"
             },
             {
               "from": "llm",
@@ -215,18 +215,18 @@
             {
               "from": "llm",
               "to": "app",
-              "label": "Call refund(1234, £20)",
+              "label": "Call refund(1234)",
               "kind": "refer"
             },
             {
               "from": "app",
               "to": "app",
-              "label": "Refunds need approval"
+              "label": "Look up order (£20); needs approval"
             },
             {
               "from": "app",
               "to": "user",
-              "label": "Refund £20? Approve or cancel"
+              "label": "Refund £20 for 1234? Approve or cancel"
             },
             {
               "from": "user",
@@ -236,13 +236,30 @@
             {
               "from": "app",
               "to": "tools",
-              "label": "refund(1234, £20)"
+              "label": "refund(1234)"
             },
             {
               "from": "tools",
               "to": "app",
-              "label": "Done",
+              "label": "Refunded £20",
               "kind": "refer"
+            },
+            {
+              "from": "app",
+              "to": "llm",
+              "label": "Conversation + tools + result"
+            },
+            {
+              "from": "llm",
+              "to": "app",
+              "label": "Answer: refunded £20",
+              "kind": "answer"
+            },
+            {
+              "from": "app",
+              "to": "user",
+              "label": "Order 1234 refunded (£20)",
+              "kind": "answer"
             }
           ]
         },
@@ -258,13 +275,13 @@
             {
               "from": "llm",
               "to": "app",
-              "label": "Call search(\"ZX9\")",
+              "label": "Call track(\"ZX9\")",
               "kind": "refer"
             },
             {
               "from": "app",
               "to": "tools",
-              "label": "search(\"ZX9\")"
+              "label": "track(\"ZX9\")"
             },
             {
               "from": "tools",
@@ -374,7 +391,7 @@
                   "tone": "work"
                 },
                 {
-                  "s": 3200,
+                  "s": 3400,
                   "d": 1200,
                   "tone": "work"
                 }
@@ -389,14 +406,14 @@
             {
               "label": "get_customer",
               "s": 2800,
-              "d": 400,
+              "d": 600,
               "tone": "net"
             }
           ]
         },
         "parallel": {
           "label": "Both in one step",
-          "note": "two model calls",
+          "note": "two model calls; waits for the slower tool",
           "rows": [
             {
               "label": "Model",
@@ -407,7 +424,7 @@
                   "tone": "work"
                 },
                 {
-                  "s": 1600,
+                  "s": 1800,
                   "d": 1200,
                   "tone": "work"
                 }
@@ -422,7 +439,7 @@
             {
               "label": "get_customer",
               "s": 1200,
-              "d": 400,
+              "d": 600,
               "tone": "net"
             }
           ]

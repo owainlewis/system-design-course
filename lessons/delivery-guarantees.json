@@ -36,7 +36,7 @@
       "blocks": [
         { "list": [
           "**SQS standard queues deliver at least once.** Amazon SQS says a [standard queue](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html) can deliver a message more than once, so consumers should be idempotent.",
-          "**SQS FIFO queues remove duplicates for a while.** [FIFO queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html) don't add a second copy of a message sent with the same deduplication ID within a 5-minute interval.",
+          "**SQS FIFO queues deduplicate sends for 5 minutes.** [FIFO queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html) drop a duplicate send with the same deduplication ID within 5 minutes. A consumer that crashes before deleting a message still triggers redelivery, so consumers still need idempotency.",
           "**Kafka offers exactly once inside Kafka.** Its [idempotent producer and transactions](https://kafka.apache.org/44/design/design/#message-delivery-semantics) let a job read from one topic and write to another with each event counted once. Effects outside Kafka still need an idempotent consumer.",
           "**Default to at least once.** Losing data is usually worse than handling it twice, and duplicates can be made harmless. Choose at most once only for data you can afford to lose, such as some metrics."
         ] }
@@ -96,7 +96,7 @@
           "state": { "db": "orders: none" },
           "steps": [
             { "from": "broker", "to": "worker", "label": "Message: order 7" },
-            { "from": "worker", "to": "db", "label": "Save order 7 and its ID", "set": { "db": "orders: 7" } },
+            { "from": "worker", "to": "db", "label": "Save order 7 and its ID", "set": { "db": "orders: 7; seen: 7" } },
             { "from": "worker", "to": "worker", "label": "Crash before the ack", "kind": "fail" },
             { "from": "broker", "to": "broker", "label": "No ack: send again" },
             { "from": "broker", "to": "worker", "label": "Message: order 7" },

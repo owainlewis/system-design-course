@@ -64,35 +64,41 @@ KINDS.lb = {
     const { ctx, w, h } = fitCanvas(f.cv, ww => ww < 600 ? 560 : Math.max(360, 96 + N * 74 + 120));
     const chart = { x: 58, y: h - 100, w: w - 78, h: 70 };
     const top = 20, bottom = chart.y - 34;
+    const direct = N === 1;
     let C, LB; const S = [];
     if (!portrait) {
-      const cy = (top + bottom) / 2; C = { x: Math.max(56, w * .07), y: cy }; LB = { x: w * .3, y: cy };
+      const cy = (top + bottom) / 2; C = { x: Math.max(56, w * .08), y: cy }; LB = { x: w * .32, y: cy };
       for (let i = 0; i < N; i++) S.push({ x: w - Math.max(110, w * .14), y: N === 1 ? cy : lerp(top + 26, bottom - 30, i / (N - 1)) });
     } else {
       C = { x: w / 2, y: top + 22 }; LB = { x: w / 2, y: top + 112 };
       for (let i = 0; i < N; i++) S.push({ x: N === 1 ? w / 2 : lerp(64, w - 64, i / (N - 1)), y: bottom - 40 });
     }
     ctx.strokeStyle = COL.hair2; ctx.lineWidth = 1;
-    strokeBez(ctx, C, LB, portrait); S.forEach((p, i) => { ctx.save(); if (!sim.lbThinksUp(i, now)) ctx.setLineDash([3, 4]); strokeBez(ctx, LB, p, portrait); ctx.restore(); });
+    if (direct) {
+      ctx.save(); if (!sim.lbThinksUp(0, now)) ctx.setLineDash([3, 4]); strokeBez(ctx, C, S[0], portrait); ctx.restore();
+    } else {
+      strokeBez(ctx, C, LB, portrait); S.forEach((p, i) => { ctx.save(); if (!sim.lbThinksUp(i, now)) ctx.setLineDash([3, 4]); strokeBez(ctx, LB, p, portrait); ctx.restore(); });
+    }
 
     // requests
-    const qpos = (i, k) => portrait ? { x: S[i].x - 30 + (k % 8) * 8 - 0, y: S[i].y - 34 - Math.floor(k / 8) * 8 } : { x: S[i].x - 34 - (k % 14) * 8, y: S[i].y - 2 - Math.floor(k / 14) * 8 };
+    const qpos = (i, k) => portrait ? { x: S[i].x - 30 + (k % 8) * 8, y: S[i].y - 34 - Math.floor(k / 8) * 8 } : { x: S[i].x - 34 - (k % 14) * 8, y: S[i].y - 2 - Math.floor(k / 14) * 8 };
     for (const off of [0, sim.P]) for (const q of sim.reqs) {
       const lt = now + off, t0 = q.t; if (lt < t0) continue;
       let p, col = COL.ink2, a = 1, label = null;
-      if (lt < q.t + LB_IN) p = bez(C, LB, ease((lt - t0) / LB_IN), portrait);
+      if (direct && lt < q.at) p = bez(C, S[0], ease((lt - t0) / (LB_IN + LB_OUT)), portrait);
+      else if (lt < q.t + LB_IN) p = bez(C, LB, ease((lt - t0) / LB_IN), portrait);
       else if (lt < q.at) p = bez(LB, S[q.server], ease((lt - q.t - LB_IN) / LB_OUT), portrait);
       else if (q.failed && lt >= q.end) { const dt = lt - q.end; if (dt > .7) continue; p = portrait ? { x: S[q.server].x - 26 - dt * 30, y: S[q.server].y + 10 + 90 * dt * dt } : { x: S[q.server].x - 30 - dt * 30, y: S[q.server].y + 10 + 90 * dt * dt }; col = COL.red; a = 1 - dt / .7; label = dt < .45 && q.id % 2 === 0 ? 'error' : null; }
       else if (lt < q.start) { const k = sim.jobs[q.server].filter(j => j.start != null && j.at <= lt && j.start > lt && j.start < q.start && j.end > lt).length + 1; p = qpos(q.server, k); }
       else if (lt < q.end) p = qpos(q.server, 0);
       else { const dt = lt - q.end; if (dt > .25) continue; p = portrait ? { x: S[q.server].x, y: S[q.server].y + 24 + dt * 60 } : { x: S[q.server].x + 26 + dt * 80, y: S[q.server].y }; col = COL.accent; a = 1 - dt / .25; }
-      ctx.globalAlpha = a; dot(ctx, p.x, p.y, 3, col);
+      ctx.globalAlpha = a; packet(ctx, p.x, p.y, 3.2, col);
       if (label) text(ctx, label, p.x - 6, p.y - 8, { align: 'right', size: 10.5, font: MONO, weight: 500, color: COL.red });
       ctx.globalAlpha = 1;
     }
 
     node(ctx, C.x, C.y, 'user', 'Clients');
-    node(ctx, LB.x, LB.y, 'balancer', 'Load balancer', ALGO_LB_NAME[s.algo]);
+    if (!direct) node(ctx, LB.x, LB.y, 'balancer', 'Load balancer', ALGO_LB_NAME[s.algo]);
     S.forEach((p, i) => {
       const down = sim.isDown(i, now), out = sim.jobs[i].filter(j => j.at <= now && j.end > now && !j.failed).length;
       const v = s.servers[i], sub = down ? (N === 1 ? 'down' : sim.lbThinksUp(i, now) ? 'down, not detected' : 'down, removed') : (v.speed ?? 1) < 1 ? `${Math.round(v.speed * 100)}% speed` : (v.speed ?? 1) > 1 ? `${v.speed}× speed` : null;

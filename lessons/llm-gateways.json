@@ -30,8 +30,8 @@
             "**Keys in one place.** Services authenticate to the gateway. Only the gateway holds provider keys.",
             "**One API.** Services use one request format, and the gateway translates for each provider, so changing model is a configuration change.",
             "**Limits and budgets.** The gateway counts tokens and spend per team or key, and rejects requests over a limit, as in the rate limiting lesson.",
-            "**Fallbacks.** If a provider returns an error or is too slow, the gateway retries with another model or provider.",
-            "**Caching.** An identical request can be answered from a cache. Many providers also cache a long, repeated prompt prefix on their side, which cuts cost and latency.",
+            "**Fallbacks.** If a provider returns an error or times out before tokens start streaming, the gateway retries with another model or provider.",
+            "**Caching.** An identical deterministic request can be answered from a cache. Many providers also reuse the prompt's KV cache for a repeated prefix, which cuts cost and latency.",
             "**Logs.** Every prompt, response, token count, latency and cost is recorded in one place, for debugging and evals."
           ]
         },
@@ -46,7 +46,7 @@
           "p": "A model writes its answer one token at a time, and a long answer can take many seconds. Providers stream tokens as they are made, usually as server-sent events. Users see text start almost at once."
         },
         {
-          "p": "A gateway that waits for the whole response before passing it on throws that away. It must pass each event through as it arrives, and count tokens as they go by."
+          "p": "A gateway that waits for the whole response before passing it on throws away fast **time to first token** (TTFT). It must pass each event through as it arrives, and record the token usage the provider reports in the stream (or estimate it if a stream drops early)."
         },
         {
           "figure": "stream",
@@ -71,7 +71,7 @@
             "**So do hosted ones.** [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) adds caching, rate limiting, retries and analytics in front of model providers.",
             "**Streams use server-sent events.** The [server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html) format sends a stream of events over one HTTP response. Check that every proxy and load balancer on the path doesn't buffer it.",
             "**Providers cache prompt prefixes.** Anthropic's [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) reuses the processing of a repeated prefix, such as long instructions, across requests. Put the parts that don't change first.",
-            "**Keep it thin.** The gateway is on the path of every model call. Make it stateless, run several copies, and keep slow work like log shipping off the request path."
+            "**Keep it thin.** The gateway is on the path of every model call. Keep gateway instances stateless behind a shared store such as Redis for budgets, run several copies, and ship logs off the request path."
           ]
         }
       ]
@@ -150,7 +150,7 @@
             {
               "from": "gw",
               "to": "b",
-              "label": "Same request"
+              "label": "Translated request"
             },
             {
               "from": "b",
@@ -204,8 +204,12 @@
       "still": 0.99,
       "legend": [
         [
+          "wait",
+          "prefill (TTFT)"
+        ],
+        [
           "work",
-          "model writing"
+          "model decoding tokens"
         ],
         [
           "net",
@@ -218,10 +222,21 @@
           "note": "nothing on screen for 4 s",
           "rows": [
             {
-              "label": "Model writes",
-              "s": 0,
-              "d": 4000,
-              "tone": "work"
+              "label": "Model",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 450,
+                  "tone": "wait",
+                  "text": "prefill"
+                },
+                {
+                  "s": 450,
+                  "d": 3550,
+                  "tone": "work",
+                  "text": "decode"
+                }
+              ]
             },
             {
               "label": "User sees text",
@@ -233,13 +248,24 @@
         },
         "stream": {
           "label": "Streamed",
-          "note": "first words after 0.5 s",
+          "note": "first token after 0.5 s (TTFT)",
           "rows": [
             {
-              "label": "Model writes",
-              "s": 0,
-              "d": 4000,
-              "tone": "work"
+              "label": "Model",
+              "spans": [
+                {
+                  "s": 0,
+                  "d": 450,
+                  "tone": "wait",
+                  "text": "prefill"
+                },
+                {
+                  "s": 450,
+                  "d": 3550,
+                  "tone": "work",
+                  "text": "decode"
+                }
+              ]
             },
             {
               "label": "User sees text",
@@ -300,25 +326,29 @@
         "pin": 3,
         "pout": 15
       },
+      "formats": {
+        "cin": "d2",
+        "cout": "d2"
+      },
       "rows": [
         {
           "key": "cin",
           "label": "Input cost a day ($)",
           "expr": "req * 1000 * tin / 1e6 * pin",
           "show": "{req}k × {tin} tokens × ${pin} per million",
-          "format": "d0"
+          "format": "d2"
         },
         {
           "key": "cout",
           "label": "Output cost a day ($)",
           "expr": "req * 1000 * tout / 1e6 * pout",
           "show": "{req}k × {tout} tokens × ${pout} per million",
-          "format": "d0"
+          "format": "d2"
         },
         {
           "label": "Cost a month ($)",
           "expr": "(cin + cout) * 30",
-          "show": "({cin} + {cout}) × 30 days",
+          "show": "(${cin} + ${cout}) × 30 days",
           "format": "d0",
           "tone": "accent"
         }

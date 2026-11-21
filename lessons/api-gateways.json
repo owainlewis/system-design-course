@@ -44,11 +44,11 @@
           "p": "A gateway can also answer one client request by calling several services and combining the results. Microsoft's architecture guide calls this the [gateway aggregation pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/gateway-aggregation)."
         },
         {
-          "p": "It pays off because the gateway sits in the datacenter, next to the services. Its calls to them are short round trips, and it can make them in parallel. The client makes one long round trip instead of three."
+          "p": "It pays off most when calls depend on each other or hit separate hostnames. The gateway sits in the datacenter, next to the services, so its hops take about 1 ms instead of 100 ms over a mobile network. The client makes one long round trip instead of three."
         },
         {
           "figure": "aggregation",
-          "caption": "A phone needs a profile, recent orders and recommendations. It makes three calls over a 100 ms mobile round trip, or one call to a gateway that makes the three calls in parallel."
+          "caption": "Each call needs data from the last: profile gives the account ID for orders, and orders gives the items for recommendations. Over a 100 ms mobile round trip, a gateway cuts total time nearly in half."
         }
       ]
     },
@@ -58,7 +58,7 @@
       "blocks": [
         {
           "list": [
-            "**Managed gateways exist.** [Amazon API Gateway](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html) throttles requests with a token bucket, per account and per API, and can check tokens before a request reaches your code.",
+            "**Managed gateways exist.** [Amazon API Gateway](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html) throttles requests with a token bucket, per account per Region and per stage or route, and can check tokens before a request reaches your code.",
             "**One gateway per kind of client.** The [Backends for Frontends pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/backends-for-frontends) gives the mobile app and the website separate gateways, so each can shape responses for its own screens.",
             "**Keep business logic out.** A gateway that starts to make business decisions becomes a service that every team must change. Keep it to routing and checks that apply to every request.",
             "**It adds a hop and a dependency.** Every request now passes through the gateway, so it must be fast and run as several copies."
@@ -270,7 +270,7 @@
         },
         "gateway": {
           "label": "One call to a gateway",
-          "note": "one mobile round trip; the gateway calls the services in parallel",
+          "note": "one mobile round trip; chained calls stay inside the datacenter",
           "rows": [
             {
               "label": "Phone to gateway",
@@ -281,7 +281,7 @@
                   "tone": "net"
                 },
                 {
-                  "s": 112,
+                  "s": 186,
                   "d": 50,
                   "tone": "net"
                 }
@@ -297,14 +297,14 @@
             {
               "label": "Recent orders",
               "depth": 1,
-              "s": 51,
+              "s": 83,
               "d": 42,
               "tone": "work"
             },
             {
               "label": "Recommendations",
               "depth": 1,
-              "s": 51,
+              "s": 125,
               "d": 61,
               "tone": "work"
             }

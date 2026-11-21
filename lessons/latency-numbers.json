@@ -48,7 +48,7 @@
         },
         {
           "figure": "one-mb",
-          "caption": "Reading 1 MB in sequence from memory, from another machine over the network, and from a spinning disk, using Dean's numbers."
+          "caption": "Reading 1 MB sequentially from memory, over a 1 Gbps network, and from a spinning disk, using Dean's latency figures."
         }
       ]
     },
@@ -58,7 +58,7 @@
       "blocks": [
         {
           "list": [
-            "**Count the round trips.** A page that makes 30 database queries one after another, each in the same datacenter, spends at least 15 ms on the network alone. One query that fetches everything spends 0.5 ms.",
+            "**Count the round trips.** A page that makes 30 database queries one after another, each at 0.5 ms per round trip, spends about 15 ms on the network alone. One query that fetches everything spends 0.5 ms.",
             "**Keep chatty work close.** Two services that call each other many times per request belong in the same datacenter. A call across regions costs more than all the in-memory work in the request.",
             "**Look up current numbers.** Colin Scott keeps an [interactive version](https://colin-scott.github.io/personal_website/research/interactive_latency.html) of the list that estimates how each number has changed by year."
           ]
@@ -145,7 +145,7 @@
           "value": 20000
         },
         {
-          "label": "Read 1 MB from memory",
+          "label": "Read 1 MB sequentially from memory",
           "value": 250000
         },
         {
@@ -159,8 +159,8 @@
           "tone": "accent"
         },
         {
-          "label": "Read 1 MB from disk",
-          "value": 30000000
+          "label": "Read 1 MB sequentially from disk",
+          "value": 20000000
         },
         {
           "label": "California to Netherlands and back",
@@ -177,20 +177,20 @@
       "still": 0.99,
       "items": [
         {
-          "label": "From memory",
+          "label": "From memory (sequential)",
           "value": 250000,
           "tone": "accent"
         },
         {
-          "label": "Over the network",
+          "label": "Over 1 Gbps network",
           "value": 10000000
         },
         {
-          "label": "From a spinning disk",
-          "value": 30000000
+          "label": "From a spinning disk (sequential)",
+          "value": 20000000
         }
       ],
-      "stat": "disk is 120 times slower than memory"
+      "stat": "disk is 80 times slower than memory"
     },
     "playground": {
       "kind": "calc",

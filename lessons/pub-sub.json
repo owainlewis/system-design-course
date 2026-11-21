@@ -40,7 +40,7 @@
           "**SNS to SQS is the common AWS pattern.** Amazon SNS can [fan out](https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html) each message to several SQS queues, one per subscriber.",
           "**Google Pub/Sub has topics and subscriptions.** In [Pub/Sub](https://cloud.google.com/pubsub/docs/overview), a topic can have several subscriptions, one per receiving service, and the topic delivers each event to all of them.",
           "**Publish events, not commands.** Name events for what happened, such as `order placed`, rather than what someone should do. Subscribers decide what to do.",
-          "**Agree on the event's shape.** Subscribers depend on its fields. Add fields freely, but treat removing or renaming one as a breaking change."
+          "**Agree on the event's shape.** Subscribers depend on its fields. Add optional fields freely, but treat adding required fields, removing a field, or changing its type as a breaking change."
         ] }
       ]
     },
@@ -71,7 +71,7 @@
       "still": 0.97,
       "actors": [
         { "id": "orders", "label": "Order service", "short": "Orders", "icon": "server" },
-        { "id": "topic", "label": "Topic", "short": "Topic", "icon": "balancer" },
+        { "id": "topic", "label": "Topic + queues", "short": "Topic", "icon": "balancer" },
         { "id": "email", "label": "Email", "short": "Email", "icon": "server" },
         { "id": "stock", "label": "Inventory", "short": "Stock", "icon": "server" },
         { "id": "stats", "label": "Analytics", "short": "Stats", "icon": "server" }

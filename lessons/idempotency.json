@@ -24,7 +24,7 @@
         { "p": "To make a `POST` safe to retry, the client creates a unique **idempotency key** for the operation and sends it with the request. A retry sends the same key." },
         { "p": "The server stores each key with the result of the request. When a key it has seen arrives again, it returns the stored result instead of doing the work again." },
         { "figure": "retry", "caption": "The first response is lost and the client retries. Without a key the card is charged twice. With a key the server finds the first result and returns it." },
-        { "code": "POST /v1/charges\nIdempotency-Key: 8e03978e-40d5-43e8-bc93-6894a57f9324\n\n{ \"amount\": 2000, \"currency\": \"gbp\" }", "caption": "A charge with an idempotency key. The key is a random UUID made once per charge and reused on every retry." },
+        { "code": "POST /v1/charges\nIdempotency-Key: \"8e03978e-40d5-43e8-bc93-6894a57f9324\"\n\n{ \"amount\": 2000, \"currency\": \"gbp\" }", "caption": "A charge with an idempotency key. The key is a random UUID made once per charge and reused on every retry. The IETF draft quotes the header value as a structured string; some APIs such as Stripe accept it unquoted." },
         { "h3": "Getting it right" },
         { "list": [
           "**Save the key and the work together.** When the work is a write to your own database, record the key in the same transaction. When the work is a call to someone else, such as a card network, it can't join your transaction. Record the key as pending first, pass an idempotency key on to that provider too, and reconcile pending records against the provider after a crash.",
@@ -51,7 +51,7 @@
       "heading": "Summary",
       "blocks": [
         { "list": [
-          "A timeout doesn't tell the client whether the request worked, so it has to retry.",
+          "A timeout doesn't tell the client whether the request worked, so safe retries need idempotency.",
           "An idempotent operation has the same effect however many times it runs.",
           "An idempotency key lets the server spot a retry and return the first result.",
           "Store the key in the same transaction as your own writes, pass a key on to outside providers, and handle duplicates that arrive at the same time."
@@ -89,7 +89,7 @@
           "state": { "db": "charges: none" },
           "steps": [
             { "from": "client", "to": "api", "label": "POST charge £20, key k1" },
-            { "from": "api", "to": "db", "label": "Insert charge and k1", "set": { "db": "charges: £20 (k1)" } },
+            { "from": "api", "to": "db", "label": "Save charge, k1 and result", "set": { "db": "charges: £20 (k1)" } },
             { "from": "api", "to": "client", "label": "OK", "kind": "lost" },
             { "from": "client", "to": "client", "label": "Timeout: retry with k1" },
             { "from": "client", "to": "api", "label": "POST charge £20, key k1" },

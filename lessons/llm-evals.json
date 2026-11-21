@@ -56,7 +56,7 @@
           "caption": "The range of true pass rates that fit what you measured, from the number of cases and how many passed. It uses the Wilson interval, which stays between 0% and 100% even with few cases."
         },
         {
-          "p": "To compare two versions, run both on the same cases and count the cases that changed: fixed by the new version, and broken by it. Cases both versions pass or both fail say nothing about the difference. If 25 cases were fixed and 7 broken, the new version is ahead by 18. With only 3 fixed and 1 broken, the difference could easily be chance. The Anthropic paper below shows how to put error bars on this paired difference."
+          "p": "To compare two versions, run both on the same cases and count the cases that changed: fixed by the new version, and broken by it. Cases both versions pass or both fail don't tell you which version is ahead, though total case count decides how big the gain is in percentage points. If 25 cases were fixed and 7 broken, the new version is ahead by 18. With only 3 fixed and 1 broken, the difference could easily be chance. The Anthropic paper below shows how to put error bars on this paired difference."
         },
         {
           "h3": "After shipping"
@@ -157,13 +157,13 @@
             {
               "from": "grade",
               "to": "run",
-              "label": "184 pass; current version 166",
+              "label": "184 vs 166 (25 fixed, 7 broken)",
               "kind": "refer"
             },
             {
               "from": "run",
               "to": "dev",
-              "label": "Better by 9 points: ship",
+              "label": "+9 percentage points: ship",
               "kind": "answer"
             }
           ]
@@ -199,9 +199,9 @@
             {
               "from": "dev",
               "to": "run",
-              "label": "Add 12 cases",
+              "label": "Add 4 instructive cases",
               "set": {
-                "run": "212 cases"
+                "run": "204 cases"
               }
             }
           ]

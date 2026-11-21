@@ -63,8 +63,8 @@
       "blocks": [
         {
           "list": [
-            "**The original paper.** Consistent hashing comes from a [1997 paper by Karger and others](https://cs.brown.edu/courses/csci2950-u/f09/papers/chash97stoc.pdf) about spreading web caches. It maps caches and pages onto a line from 0 to 1 and gives each cache several copies to even out the load.",
-            "**Amazon Dynamo** describes its partitioning as a ring where each key goes to the first node clockwise. The [Dynamo paper](https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html) names two problems with one position per node. Load is uneven, and some machines are bigger than others. Virtual nodes fix both: a bigger machine gets more of them.",
+            "**The original paper.** Consistent hashing comes from a [1997 paper by Karger and others](https://cs.brown.edu/courses/csci2950-u/f09/papers/chash97stoc.pdf) about spreading web caches. It maps caches and pages onto a unit circle from 0 to 1 and gives each cache several copies to even out the load.",
+            "**Amazon Dynamo** describes its partitioning as a ring where each key goes to the first node clockwise. The [Dynamo paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf) names two problems with one position per node. Load is uneven, and some machines are bigger than others. Virtual nodes fix both: a bigger machine gets more of them.",
             "**NGINX** can pick an upstream server with `hash $key consistent`, so that adding or removing a server remaps only a few keys. Its documentation says this suits caches."
           ]
         }
@@ -247,8 +247,8 @@
       "type": "paper"
     },
     {
-      "label": "Amazon: Dynamo, Amazon's highly available key-value store",
-      "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html",
+      "label": "DeCandia et al.: Dynamo, Amazon's highly available key-value store (SOSP 2007)",
+      "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
       "note": "Section 4.2 describes the ring and virtual nodes.",
       "type": "paper"
     },

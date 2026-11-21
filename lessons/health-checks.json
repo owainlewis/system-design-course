@@ -66,7 +66,7 @@
             "**Kubernetes has three probes.** Kubernetes [liveness, readiness and startup probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/) restart a container that fails liveness, and stop sending traffic to one that fails readiness.",
             "**AWS load balancers fail open.** An Application Load Balancer's [health checks](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html) have a configurable interval and thresholds. If every target is unhealthy, it routes requests to all of them.",
             "**Amazon warns about deep checks.** The Builders' Library article [Implementing health checks](https://aws.amazon.com/builders-library/implementing-health-checks/) compares liveness, local and dependency checks, and explains when failing open is safer.",
-            "**Clients can help.** A load balancer that sees errors on real requests can stop using a server before the next check runs. Envoy calls this outlier detection."
+            "**Passive checks can help.** A load balancer that sees errors on real requests can stop using a server before the next check runs. Envoy calls this outlier detection."
           ]
         }
       ]
@@ -153,7 +153,7 @@
           "type": "range",
           "key": "interval",
           "label": "Check every (seconds)",
-          "min": 1,
+          "min": 6,
           "max": 60
         },
         {
@@ -168,7 +168,7 @@
           "key": "timeout",
           "label": "Check timeout (seconds)",
           "min": 1,
-          "max": 10
+          "max": 5
         },
         {
           "type": "range",

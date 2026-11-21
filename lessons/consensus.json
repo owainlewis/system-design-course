@@ -231,6 +231,12 @@
             },
             {
               "from": "s3",
+              "to": "s1",
+              "label": "Vote for me, term 3",
+              "kind": "lost"
+            },
+            {
+              "from": "s3",
               "to": "s2",
               "label": "Vote for me, term 3"
             },
@@ -238,6 +244,12 @@
               "from": "s3",
               "to": "s4",
               "label": "Vote for me, term 3"
+            },
+            {
+              "from": "s3",
+              "to": "s5",
+              "label": "Vote for me, term 3",
+              "kind": "lost"
             },
             {
               "from": "s2",
@@ -262,6 +274,12 @@
             {
               "from": "s3",
               "to": "s2",
+              "label": "Heartbeat, term 3",
+              "kind": "answer"
+            },
+            {
+              "from": "s3",
+              "to": "s4",
               "label": "Heartbeat, term 3",
               "kind": "answer"
             }

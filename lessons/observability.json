@@ -34,7 +34,7 @@
           "caption": "A trace of one checkout request. Each bar is a span, nested under the call that made it. The pricing service's call to the tax API takes most of the 420 ms."
         },
         {
-          "p": "For a trace to cross services, each service passes the trace ID on in a header with every call it makes. Putting the trace ID in every log line links logs to traces too."
+          "p": "For a trace to cross services, each service passes the trace ID and its own span ID on in a header with every call it makes. Putting the trace ID in every log line links logs to traces too."
         },
         {
           "h3": "Averages hide the slow requests"
@@ -68,10 +68,10 @@
         {
           "list": [
             "**OpenTelemetry is the common standard.** [OpenTelemetry](https://opentelemetry.io/docs/concepts/signals/) defines traces, metrics and logs, with SDKs for most languages and a collector that sends data to any backend.",
-            "**Trace IDs travel in a standard header.** [W3C Trace Context](https://www.w3.org/TR/trace-context/) defines the `traceparent` header that carries the trace ID between services.",
+            "**Trace context travels in a standard header.** [W3C Trace Context](https://www.w3.org/TR/trace-context/) defines the `traceparent` header that carries both the trace ID and the caller's span ID between services.",
             "**Google's four golden signals.** The SRE book chapter [Monitoring Distributed Systems](https://sre.google/sre-book/monitoring-distributed-systems/) names latency, traffic, errors and saturation.",
             "**The tail matters at scale.** Dean and Barroso's [The Tail at Scale](https://doi.org/10.1145/2408776.2408794) shows how a request that fans out to many servers is held up by the slowest one.",
-            "**Sample traces.** Recording every span of every request costs a lot. Most systems keep a sample, plus every trace that had an error or was slow."
+            "**Sample traces.** Recording every span of every request costs a lot. Head-based sampling keeps a fixed fraction at the start, while tail-based sampling buffers traces to keep errors and slow outliers."
           ]
         }
       ]
@@ -222,7 +222,7 @@
         {
           "label": "Requests that wait on a slow call (%)",
           "expr": "(1 - Math.pow(0.99, n)) * 100",
-          "show": "1 − 0.99 to the power {n}",
+          "show": "(1 − 0.99 to the power {n}) × 100%",
           "format": "d0",
           "tone": "accent"
         }

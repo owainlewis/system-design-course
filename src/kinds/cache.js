@@ -25,7 +25,7 @@ function caSimulate(s) {
     for (let t = s.start; t < s.end; t += 1 / s.rate) reqs.push({ t: t + (r() - .5) * .3 / s.rate, key: pickKey() });
   }
   reqs.sort((a, b) => a.t - b.t); reqs.forEach((q, i) => q.id = i);
-  const ttl = s.ttl ?? Infinity, dbT = s.db ?? 0.25, C = s.capacity;
+  const ttl = s.ttl ?? Infinity, dbLeg = s.seq ? 0.12 : CA_DB, dbT = s.seq ? (s.db ?? 0.1) : (s.db ?? 0.25), C = s.capacity;
   // version of each key in the database, bumped by writes
   const dbVer = Object.fromEntries(names.map(k => [k, 0]));
   let slots = [];   // [{ key, ver, exp, last, ins }], most recently used first for lru, newest first for fifo
@@ -68,15 +68,15 @@ function caSimulate(s) {
       q.hit = false;
       if (s.coalesce && inflight[q.key] != null) { q.shared = true; q.back = inflight[q.key]; }
       else {
-        dbQueries++; q.db = true; q.back = at + CA_DB * 2 + dbT; inflight[q.key] = q.back;
-        const fill = { at: q.back, type: 'fill', key: q.key, ver: verAt(q.key, at + CA_DB + dbT / 2) };   // the value as of the moment the database read it
+        dbQueries++; q.db = true; q.back = at + dbLeg * 2 + dbT; inflight[q.key] = q.back;
+        const fill = { at: q.back, type: 'fill', key: q.key, ver: verAt(q.key, at + dbLeg + dbT / 2) };   // the value as of the moment the database read it
         let j = i + 1; while (j < events.length && events[j].at <= fill.at) j++; events.splice(j, 0, fill);
       }
       q.done = q.back + CA_IN;
     }
     q.latency = q.done - q.t - 2 * CA_IN + (q.hit ? 0.002 : 0);
   }
-  const sim = { s, reqs, snaps, names, dbQueries, P: s.period };
+  const sim = { s, reqs, snaps, names, dbQueries, dbLeg, P: s.period };
   caCache.set(key, sim); return sim;
 }
 const caSlotsAt = (sim, t) => { let lo = 0, hi = sim.snaps.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (sim.snaps[m].t <= t) lo = m; else hi = m - 1; } return sim.snaps[lo]; };
@@ -124,10 +124,10 @@ KINDS.cache = {
       const a = q.t, c1 = a + CA_IN;
       if (lt < c1) return bez(A, inP, ease((lt - a) / CA_IN), portrait);
       if (q.hit || q.shared) { if (lt < q.back) return { x: inP.x + (portrait ? -10 : 8), y: inP.y + (portrait ? 8 : -10) }; return lt < q.done ? bez(inP, A, ease((lt - q.back) / CA_IN), portrait) : null; }
-      const d1 = c1 + CA_DB, d2 = q.back - CA_DB;
-      if (lt < d1) return bez(outP, D, ease((lt - c1) / CA_DB), portrait);
+      const d1 = c1 + sim.dbLeg, d2 = q.back - sim.dbLeg;
+      if (lt < d1) return bez(outP, D, ease((lt - c1) / sim.dbLeg), portrait);
       if (lt < d2) return { x: D.x + (portrait ? 30 : 0), y: D.y + (portrait ? 0 : -30) };
-      if (lt < q.back) return bez(D, outP, ease((lt - d2) / CA_DB), portrait);
+      if (lt < q.back) return bez(D, outP, ease((lt - d2) / sim.dbLeg), portrait);
       return lt < q.done ? bez(inP, A, ease((lt - q.back) / CA_IN), portrait) : null;
     };
     for (const q of sim.reqs) {
@@ -135,11 +135,11 @@ KINDS.cache = {
       const p = path(q, now); if (!p) continue;
       const returning = now >= q.back;
       const col = q.stale && returning ? COL.amber : returning ? (q.hit ? COL.accent : COL.ink2) : COL.ink2;
-      dot(ctx, p.x, p.y, 3, col);
+      packet(ctx, p.x, p.y, 3.2, col);
       if (s.seq) text(ctx, q.key, p.x, p.y - 10, { align: 'center', size: 11, font: MONO, weight: 600, color: col });
     }
     // database reads in progress
-    const busy = sim.reqs.filter(q => q.db && now >= q.t + CA_IN + CA_DB && now < q.back - CA_DB).length;
+    const busy = sim.reqs.filter(q => q.db && now >= q.t + CA_IN + sim.dbLeg && now < q.back - sim.dbLeg).length;
     if (busy) tag(ctx, D.x + (portrait ? 60 : 0), D.y + (portrait ? 0 : 58), `${busy} reading`, busy > 3);
 
     // response-time scatter

@@ -50,7 +50,7 @@ function qSimulate(s) {
     } else { now = nf; startWork(now); if (nf === Infinity) break; }
     samples.push({ t: now, q: queue.length, b: blocked.length });
   }
-  msgs.forEach(m => { if (!m.rejected && !m.shed && m.start != null) m.wait = m.start - m.enq; });
+  msgs.forEach(m => { if (!m.rejected && !m.shed && m.start != null) { m.wait = m.start - m.enq; m.total = m.end - (m.blockedAt ?? m.enq); } });
   const sim = { s, msgs, samples, C, cap, P: s.period };
   qCache.set(key, sim); return sim;
 }
@@ -104,9 +104,9 @@ KINDS.queue = {
       else if (m.shed) { const dt = lt - m.end; if (lt >= m.end && dt < .7) { p = { x: qOut.x + 8 + dt * 20, y: qOut.y + 12 + 90 * dt * dt }; col = COL.amber; a = 1 - dt / .7; } }
       else if (m.blockedAt != null && lt < m.enq) { p = { x: P.x + (portrait ? 30 : 34), y: P.y + (portrait ? 0 : -2) }; col = COL.amber; }
       else if (m.start != null && lt >= m.start && lt < m.start + Q_OUT) p = bez(qOut, K[m.consumer], ease((lt - m.start) / Q_OUT), portrait);
-      else if (m.start != null && lt >= m.start + Q_OUT && lt < m.end + Q_OUT) { const k = K[m.consumer]; p = portrait ? { x: k.x, y: k.y - 30 } : { x: k.x - 32, y: k.y }; col = s.deadline && m.wait > s.deadline ? COL.amber : COL.accent; }
+      else if (m.start != null && lt >= m.start + Q_OUT && lt < m.end + Q_OUT) { const k = K[m.consumer]; p = portrait ? { x: k.x, y: k.y - 30 } : { x: k.x - 32, y: k.y }; col = s.deadline && m.total > s.deadline ? COL.amber : COL.accent; }
       if (!p) continue;
-      ctx.globalAlpha = a; dot(ctx, p.x, p.y, 3, col); ctx.globalAlpha = 1;
+      ctx.globalAlpha = a; packet(ctx, p.x, p.y, 3.2, col); ctx.globalAlpha = 1;
     }
     node(ctx, P.x, P.y, 'app', s.producer || 'Producer', L.b ? `${L.b} waiting` : null, { subColor: COL.amber });
     K.forEach((k, i) => node(ctx, k.x, k.y, 'server', C > 1 ? `${s.consumer || 'Consumer'} ${i + 1}` : (s.consumer || 'Consumer')));
@@ -115,10 +115,15 @@ KINDS.queue = {
     const ymax = Math.max(4, isFinite(sim.cap) ? sim.cap * 1.15 : 0, ...sim.samples.map(x => x.q)) * 1.05;
     const X = t => chart.x + t / sim.P * chart.w, Y = v => chart.y + chart.h - v / ymax * chart.h;
     ctx.strokeStyle = COL.hair2; line(ctx, { x: chart.x, y: chart.y + chart.h + .5 }, { x: chart.x + chart.w, y: chart.y + chart.h + .5 });
-    if (isFinite(sim.cap)) { ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = rgba(COL.red, .6); line(ctx, { x: chart.x, y: Y(sim.cap) }, { x: chart.x + chart.w, y: Y(sim.cap) }); ctx.restore(); text(ctx, `limit ${sim.cap}`, chart.x + chart.w, Y(sim.cap) - 8, { align: 'right', size: 10.5, font: MONO, color: COL.red }); }
-    ctx.strokeStyle = COL.accent; ctx.lineWidth = 1.5; ctx.beginPath(); let first = true, last = 0;
+    if (isFinite(sim.cap)) { ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = rgba(COL.red, .65); line(ctx, { x: chart.x, y: Y(sim.cap) }, { x: chart.x + chart.w, y: Y(sim.cap) }); ctx.restore(); text(ctx, `limit ${sim.cap}`, chart.x + chart.w, Y(sim.cap) - 8, { align: 'right', size: 10.5, font: MONO, color: COL.red }); }
+    ctx.beginPath(); let first = true, last = 0;
     for (const x of sim.samples) { if (x.t > now) break; if (first) { ctx.moveTo(X(0), Y(0)); first = false; } ctx.lineTo(X(x.t), Y(last)); ctx.lineTo(X(x.t), Y(x.q)); last = x.q; }
-    if (!first) ctx.lineTo(X(now), Y(last)); ctx.stroke(); ctx.lineWidth = 1;
+    if (!first) {
+      ctx.lineTo(X(now), Y(last));
+      ctx.strokeStyle = COL.accent; ctx.lineWidth = 1.6; ctx.stroke(); ctx.lineWidth = 1;
+      ctx.lineTo(X(now), Y(0)); ctx.lineTo(X(0), Y(0)); ctx.closePath();
+      ctx.fillStyle = rgba(COL.accent, .12); ctx.fill();
+    }
     sim.msgs.filter(m => (m.rejected || m.shed) && m.end <= now).forEach(m => { const x = X(m.end), y = chart.y + chart.h - 4; ctx.strokeStyle = m.shed ? COL.amber : COL.red; ctx.lineWidth = 1.2; line(ctx, { x: x - 3, y: y - 3 }, { x: x + 3, y: y + 3 }); line(ctx, { x: x + 3, y: y - 3 }, { x: x - 3, y: y + 3 }); ctx.lineWidth = 1; });
     const tick = ymax > 40 ? 20 : ymax > 16 ? 10 : 5;
     for (let v = tick; v < ymax; v += tick) { const y = Math.round(Y(v)) + .5; ctx.save(); ctx.setLineDash([2, 4]); ctx.strokeStyle = COL.hair; line(ctx, { x: chart.x, y }, { x: chart.x + chart.w, y }); ctx.restore(); text(ctx, `${v}`, chart.x - 8, y, { align: 'right', size: 10.5, font: MONO }); }
@@ -129,9 +134,9 @@ KINDS.queue = {
 
     if (!wantStats) return null;
     const done = sim.msgs.filter(m => m.start != null && m.end <= now), rej = sim.msgs.filter(m => m.rejected && m.end <= now).length, shed = sim.msgs.filter(m => m.shed && m.end <= now).length;
-    const waiting = sim.msgs.filter(m => m.enq != null && m.enq <= now && (m.start == null || m.start > now) && !m.shed);
-    const oldest = waiting.length ? Math.max(...waiting.map(m => now - m.enq)) : 0;
-    const late = s.deadline ? done.filter(m => m.wait > s.deadline).length : 0;
-    return `<span>processed ${done.length}</span>` + (late ? `<span class="bad">${late} after the client gave up</span>` : '') + `<span class="${oldest > 2 ? 'bad' : ''}">oldest waiting ${fmt(oldest, 1)} s</span>` + (rej ? `<span class="bad">rejected ${rej}</span>` : '') + (shed ? `<span class="bad">dropped as too old ${shed}</span>` : '') + (f.def.scenarios?.[f.ctrl.scenario]?.note ? `<span>${f.def.scenarios[f.ctrl.scenario].note}</span>` : '');
+    const waiting = sim.msgs.filter(m => (m.blockedAt ?? m.enq) != null && (m.blockedAt ?? m.enq) <= now && (m.start == null || m.start > now) && !m.shed && !m.rejected);
+    const oldest = waiting.length ? Math.max(...waiting.map(m => now - (m.blockedAt ?? m.enq))) : 0;
+    const late = s.deadline ? done.filter(m => m.total > s.deadline).length : 0;
+    return `<span>processed ${done.length}</span>` + (late ? `<span class="bad">${late} after the client gave up</span>` : '') + `<span class="${oldest > 2 ? 'bad' : ''}">oldest waiting ${fmt(oldest, 1)} s</span>` + (L.b ? `<span>${L.b} blocked at producer</span>` : '') + (rej ? `<span class="bad">rejected ${rej}</span>` : '') + (shed ? `<span class="bad">dropped as too old ${shed}</span>` : '') + (f.def.scenarios?.[f.ctrl.scenario]?.note ? `<span>${f.def.scenarios[f.ctrl.scenario].note}</span>` : '');
   }
 };

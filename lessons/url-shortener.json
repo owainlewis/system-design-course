@@ -50,11 +50,11 @@
       "heading": "API",
       "blocks": [
         {
-          "code": "POST /links\n{ \"url\": \"https://example.com/a/very/long/path?with=params\" }\n\n201 Created\n{ \"key\": \"aZ3kP9q\", \"short\": \"https://short.example/aZ3kP9q\" }\n\nGET /aZ3kP9q\n\n302 Found\nLocation: https://example.com/a/very/long/path?with=params",
+          "code": "POST /links\n{ \"url\": \"https://example.com/a/very/long/path?with=params\" }\n\n201 Created\n{ \"key\": \"aZ3kP9q\", \"short\": \"https://short.example/aZ3kP9q\" }\n\nGET /aZ3kP9q\n\n302 Found\nLocation: https://example.com/a/very/long/path?with=params\nCache-Control: no-store",
           "caption": "Creating a link, and following it."
         },
         {
-          "p": "`301 Moved Permanently` lets browsers cache the redirect, so repeat clicks never reach you. That saves load but loses click counts, and you can never change where the link points. `302 Found` is not cached by default, but browsers and proxies may still cache it if the response allows. With click counts as a requirement, use 302 and send `Cache-Control: no-store` so every click comes back to the service."
+          "p": "`301 Moved Permanently` lets browsers cache the redirect by default, so repeat clicks never reach you. That saves load but loses click counts, and makes changing where a link points hard once cached. `302 Found` is not cached by default, though browsers and proxies may still cache it if headers allow. With click counts as a requirement, use 302 and send `Cache-Control: no-store` so every click comes back to the service."
         }
       ]
     },
@@ -74,7 +74,7 @@
         },
         {
           "list": [
-            "**Hash the URL.** Take the first 7 characters of a hash of the long URL. Different URLs can still produce the same 7 characters, so you must check for collisions anyway.",
+            "**Hash the URL.** Hash the long URL, encode the bytes in base62, and take the first 7 characters. Different URLs can still produce the same 7 characters, so you must check for collisions anyway.",
             "**Count.** Give each link the next number from a counter and write it in base62. No collisions, but keys come out in order and can be guessed. One shared counter is also a hot spot. Handing each server a block of a thousand numbers at a time fixes the hot spot but not the guessing.",
             "**Random.** Pick 7 random characters and insert with a unique constraint on the key. If the key exists, which happens to fewer than 1 insert in 500 even after 5 years, pick again."
           ]
@@ -89,8 +89,8 @@
       "heading": "Storing links",
       "blocks": [
         {
-          "code": "CREATE TABLE links (\n  key         VARCHAR(7) PRIMARY KEY,\n  long_url    TEXT NOT NULL,\n  owner_id    BIGINT,\n  created_at  TIMESTAMP NOT NULL,\n  expires_at  TIMESTAMP\n);",
-          "caption": "One row per link. Every read is a lookup by key."
+          "code": "CREATE TABLE links (\n  short_key   CHAR(7) COLLATE \"C\" PRIMARY KEY,\n  long_url    TEXT NOT NULL,\n  owner_id    BIGINT,\n  created_at  TIMESTAMP NOT NULL,\n  expires_at  TIMESTAMP\n);",
+          "caption": "One row per link. Every read is a lookup by key, using a case-sensitive collation so aZ3kP9q and az3kp9q stay distinct."
         },
         {
           "p": "Every redirect is a lookup by primary key, and there are no joins on the hot path. A relational database or a key-value store both work. Shard by a hash of the key, as in the sharding lesson. Random keys already spread evenly, so no shard gets more than its share."
@@ -187,6 +187,7 @@
         "row": 500
       },
       "formats": {
+        "w": "d1",
         "rows": "big"
       },
       "rows": [
@@ -194,8 +195,8 @@
           "key": "w",
           "label": "Writes per second",
           "expr": "m * 1e6 / (30 * 86400)",
-          "show": "{m} million ÷ 2.6 million seconds in a month",
-          "format": "d0"
+          "show": "{m} million ÷ 2.59 million seconds in 30 days",
+          "format": "d1"
         },
         {
           "label": "Reads per second, average",
@@ -227,8 +228,8 @@
           "type": "range",
           "key": "len",
           "label": "Key length",
-          "min": 4,
-          "max": 10
+          "min": 6,
+          "max": 8
         }
       ],
       "ctrl": {
@@ -248,8 +249,8 @@
         {
           "label": "Used after 5 years (%)",
           "expr": "6e9 / keys * 100",
-          "show": "6 billion ÷ {keys}",
-          "format": "d2",
+          "show": "6 billion ÷ {keys} × 100%",
+          "format": "g",
           "tone": "accent"
         }
       ]
@@ -286,7 +287,7 @@
           "id": "q",
           "label": "Click log",
           "short": "Log",
-          "icon": "balancer"
+          "icon": "queue"
         }
       ],
       "scenarios": {

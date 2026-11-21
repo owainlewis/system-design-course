@@ -20,14 +20,14 @@
       "blocks": [
         { "p": "Every row gets a **shard key**, such as a user ID. A router, or the client library, uses the key to decide which shard holds the row. There are two common ways to decide." },
         { "list": [
-          "**By range.** Each shard owns a range of keys: 0 to 250,000 on shard 1, and so on. Rows with nearby keys sit together, so a range query reads one shard.",
+          "**By range.** Each shard owns a range of keys: 0 to 250,000 on shard 1, and so on. Rows with nearby keys sit together, so a range query reads one shard, or a few adjacent shards if it crosses a boundary.",
           "**By hash.** The router hashes the key and takes the result modulo the number of shards, or uses consistent hashing. Nearby keys land far apart, which spreads load evenly but scatters range queries across every shard."
         ] },
         { "figure": "even", "caption": "Writes with random keys, split by range and by hash over four shards. Both spread the load evenly." },
         { "h3": "Hot spots" },
         { "p": "The split is only as even as the keys. If keys grow over time, such as order IDs or timestamps, every new write has a key bigger than all the old ones. With range sharding, all new writes go to the last shard while the others sit idle." },
         { "figure": "sequential", "caption": "New order IDs, each higher than the last. By range, every write lands on shard 4. By hash, the same writes spread over all four." },
-        { "p": "Hashing can't fix a single popular key. If one celebrity account gets 40% of all writes, its shard gets them whatever the method. The usual fix is to split that key, for example by adding a suffix from 0 to 9 and spreading the ten versions over different shards." },
+        { "p": "Hashing can't fix a single popular key. If one celebrity account gets 40% of all writes, its shard gets them whatever the method. The usual fix is to split that key by adding a suffix from 0 to 9 and spreading writes across shards. Reads for that key then have to query and merge all ten." },
         { "figure": "hot-key", "caption": "40% of writes go to one key. Hashing spreads the rest, but the shard holding that key is still overloaded." },
         { "h3": "What sharding costs" },
         { "list": [

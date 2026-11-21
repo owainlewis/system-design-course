@@ -21,8 +21,10 @@ KINDS.index = {
     // the tree, on top
     const levels = [[{ label: 'a – z' }], [{ label: 'a – f' }, { label: 'g – m' }, { label: 'n – s' }, { label: 't – z' }]];
     const leaves = Array.from({ length: portrait ? 8 : 12 }, (_, i) => ({ label: '' }));
+    const leafIdx = Math.round(leaves.length * .62);
+    leaves[leafIdx].label = 'nina';
     levels.push(leaves);
-    const path = [0, 2, Math.round(leaves.length * .62)];   // root, then 'n – s', then one leaf
+    const path = [0, 2, leafIdx];   // root, then 'n – s', then the leaf containing nina@example.com
     const tTop = 18, lvlGap = 54, nodeH = 24;
     const posOf = (l, i) => { const n = levels[l].length, nw = l === 2 ? Math.min(54, (w - 40) / n - 6) : l === 1 ? Math.min(110, (w - 40) / 4 - 10) : 120; const span = Math.min(w - 40, n * (nw + (l === 2 ? 6 : 16))); return { x: w / 2 - span / 2 + (i + .5) * span / n, y: tTop + l * lvlGap, nw }; };
     const step = mode === 'tree' ? Math.floor(f.t / IX_LEVEL) : -1;   // 0 root, 1 internal, 2 leaf, 3 row
@@ -31,7 +33,7 @@ KINDS.index = {
       if (l > 0) { const parentIdx = l === 1 ? 0 : Math.min(3, Math.floor(i / (levels[2].length / 4))); const pp = posOf(l - 1, parentIdx); ctx.strokeStyle = on ? COL.accent : COL.hair2; ctx.lineWidth = on ? 1.5 : 1; line(ctx, { x: pp.x, y: pp.y + nodeH / 2 }, { x: p.x, y: p.y - nodeH / 2 }); ctx.lineWidth = 1; }
       rr(ctx, p.x - p.nw / 2, p.y - nodeH / 2, p.nw, nodeH, 4); ctx.fillStyle = on ? rgba(COL.accent, .14) : COL.node; ctx.fill();
       ctx.strokeStyle = on ? COL.accent : dim ? COL.hair : COL.hair2; ctx.lineWidth = on ? 1.5 : 1; ctx.stroke(); ctx.lineWidth = 1;
-      if (nd.label) text(ctx, nd.label, p.x, p.y + .5, { align: 'center', size: 11, font: MONO, color: on ? COL.accent : dim ? COL.hair2 : COL.ink2 });
+      if (nd.label) text(ctx, nd.label, p.x, p.y + .5, { align: 'center', size: l === 2 ? 10 : 11, font: MONO, color: on ? COL.accent : dim ? COL.hair2 : COL.ink2 });
     });
     text(ctx, mode === 'tree' ? 'B-tree index on email' : 'no index on email', 12, tTop, { size: 11, font: MONO, color: mode === 'tree' ? COL.ink2 : COL.muted });
 
@@ -56,7 +58,7 @@ KINDS.index = {
 
     if (!wantStats) return null;
     const reads = mode === 'scan' ? readUpTo + 1 : Math.min(4, step + 1);
-    return `<span>${mode === 'scan' ? 'rows read' : 'pages read'} ${Math.max(0, reads)}</span>` + (found ? `<span class="pass">found ana@example.com</span>` : '') + (mode === 'scan' && found && readUpTo < R - 1 ? '<span>still reading: another row could match</span>' : '');
+    return `<span>${mode === 'scan' ? 'rows checked' : 'pages read'} ${Math.max(0, reads)}</span>` + (found ? `<span class="pass">found nina@example.com</span>` : '') + (mode === 'scan' && found && readUpTo < R - 1 ? '<span>still scanning: another row could match</span>' : '');
   }
 };
 function ixMode(f) { return f.def.scenarios[f.ctrl.scenario ?? Object.keys(f.def.scenarios)[0]].mode; }

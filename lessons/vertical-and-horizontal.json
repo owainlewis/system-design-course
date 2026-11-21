@@ -21,14 +21,14 @@
         { "h3": "Same capacity, two shapes" },
         { "p": "Here is one server three times faster than the others, and three ordinary servers behind a load balancer. Both can finish about 20 requests a second, and both get 15." },
         { "figure": "shapes", "caption": "15 requests a second, sent to one fast server or spread over three ordinary ones. Both keep up." },
-        { "p": "The big server answers each request faster, because each request gets a faster machine. The three servers answer more slowly, but between them they finish as many requests." },
+        { "p": "The big server answers each request faster when the machine's single-core speed or memory bandwidth is higher. The three servers handle more requests at once, so between them they finish as many." },
         { "h3": "What happens when a server fails" },
         { "p": "The difference shows up when a machine fails. With one server, every request fails until it comes back. With three, the load balancer stops using the failed one and the other two carry on, at reduced capacity." },
         { "figure": "failure", "caption": "One server fails at 3 s. Compare the errors when it is the only server with the errors when it is one of three." },
         { "h3": "The trade-off" },
         { "list": [
           "**Vertical scaling is simpler.** Your code doesn't change, and there is no load balancer or shared state to think about. But machines come in fixed sizes, the largest size is a hard ceiling, and one machine is one thing to fail.",
-          "**Horizontal scaling has no fixed ceiling.** You add machines as load grows and survive the loss of any one. But the servers must not keep state that others need, which is the subject of the next lesson."
+          "**Horizontal scaling has no fixed ceiling.** You add machines as load grows and survive the loss of any one. But the servers must not keep state that others need, which is the subject of the stateless services lesson."
         ] }
       ]
     },
@@ -76,8 +76,8 @@
     "failure": {
       "kind": "lb",
       "scenarios": {
-        "up": { "label": "One big server", "scene": { "period": 9, "rate": 15, "start": 0.3, "end": 7.6, "work": 0.15, "algo": "rr", "servers": [{ "label": "Big server", "speed": 3 }], "health": { "server": 0, "down": 3, "detect": 1.5 } } },
-        "out": { "label": "One of three servers", "scene": { "period": 9, "rate": 15, "start": 0.3, "end": 7.6, "work": 0.15, "algo": "rr", "servers": [{ "speed": 1 }, { "speed": 1 }, { "speed": 1 }], "health": { "server": 1, "down": 3, "detect": 1.5 } } }
+        "up": { "label": "One big server", "scene": { "period": 9, "rate": 12, "start": 0.3, "end": 7.6, "work": 0.15, "algo": "rr", "servers": [{ "label": "Big server", "speed": 3 }], "health": { "server": 0, "down": 3, "detect": 0 } } },
+        "out": { "label": "One of three servers", "scene": { "period": 9, "rate": 12, "start": 0.3, "end": 7.6, "work": 0.15, "algo": "rr", "servers": [{ "speed": 1 }, { "speed": 1 }, { "speed": 1 }], "health": { "server": 1, "down": 3, "detect": 1.5 } } }
       }
     },
     "playground": {

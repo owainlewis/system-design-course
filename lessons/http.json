@@ -27,7 +27,7 @@
         { "figure": "versions", "caption": "Loading a page and five files, with a 40 ms round trip. HTTP/2 asks for all five files at once on one connection." },
         { "h3": "HTTP/3" },
         { "p": "HTTP/2 fixed head-of-line blocking in HTTP, but not in TCP. TCP delivers bytes in order, so when one packet is lost, every stream on the connection waits for it to be sent again." },
-        { "p": "HTTP/3 runs on **QUIC**, a transport built on UDP. QUIC knows about streams, so a lost packet delays only the streams that had data in it, not every request on the connection. [RFC 9114](https://www.rfc-editor.org/rfc/rfc9114#section-1) gives this as the reason for HTTP/3." },
+        { "p": "HTTP/3 runs on **QUIC**, a transport built on UDP. QUIC knows about streams, so a lost packet delays only the streams that had data in it, not every request on the connection. [RFC 9000](https://www.rfc-editor.org/rfc/rfc9000#section-1) and [RFC 9114](https://www.rfc-editor.org/rfc/rfc9114#section-2) explain how HTTP/3 maps exchanges onto independent QUIC streams." },
         { "figure": "loss", "caption": "One packet belonging to the image is lost. Over HTTP/2 every file waits for it. Over HTTP/3 only the image does." }
       ]
     },
@@ -81,10 +81,10 @@
           "rows": [
             { "label": "index.html", "s": 0, "d": 50, "tone": "net" },
             { "label": "style.css", "s": 50, "d": 50, "tone": "net" },
-            { "label": "app.js", "spans": [{ "s": 0, "d": 80, "tone": "wait", "text": "connect" }, { "s": 80, "d": 50, "tone": "net" }] },
-            { "label": "photo-1.jpg", "spans": [{ "s": 0, "d": 80, "tone": "wait", "text": "connect" }, { "s": 80, "d": 50, "tone": "net" }] },
+            { "label": "app.js", "spans": [{ "s": 50, "d": 80, "tone": "wait", "text": "connect" }, { "s": 130, "d": 50, "tone": "net" }] },
+            { "label": "photo-1.jpg", "spans": [{ "s": 50, "d": 80, "tone": "wait", "text": "connect" }, { "s": 130, "d": 50, "tone": "net" }] },
             { "label": "photo-2.jpg", "s": 100, "d": 50, "tone": "net" },
-            { "label": "photo-3.jpg", "s": 130, "d": 50, "tone": "net" }
+            { "label": "photo-3.jpg", "s": 150, "d": 50, "tone": "net" }
           ]
         },
         "h2": {

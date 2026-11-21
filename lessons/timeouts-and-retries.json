@@ -55,7 +55,7 @@
         },
         {
           "figure": "jitter",
-          "caption": "Six clients fail at the same moment and retry three times. With fixed backoff every retry lands at once. With jitter they spread out."
+          "caption": "Six clients fail at the same moment and retry three times. With exponential backoff and no jitter, every retry lands at once. With jitter they spread out."
         },
         {
           "h3": "Retries multiply"
@@ -113,6 +113,10 @@
         [
           "stall",
           "waiting, no answer"
+        ],
+        [
+          "fail",
+          "timed out"
         ],
         [
           "wait",
@@ -182,7 +186,7 @@
       ],
       "scenarios": {
         "fixed": {
-          "label": "Fixed backoff",
+          "label": "Exponential, no jitter",
           "note": "every retry lands at the same moment",
           "rows": [
             {
@@ -558,6 +562,12 @@
       "url": "https://sre.google/sre-book/addressing-cascading-failures/",
       "note": "Retry budgets, deadlines and how overload spreads.",
       "type": "engineering"
+    },
+    {
+      "label": "RFC 9110: Retry-After",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3",
+      "note": "How a server tells clients how long to wait before retrying.",
+      "type": "standard"
     }
   ]
 }

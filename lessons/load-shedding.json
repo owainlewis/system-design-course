@@ -114,7 +114,7 @@
         },
         "old": {
           "label": "Drop old requests",
-          "note": "requests waiting over 1.5 s are dropped",
+          "note": "requests waiting over 1.2 s are dropped",
           "scene": {
             "period": 14,
             "start": 0,
@@ -143,7 +143,7 @@
             "consumer": "Worker",
             "queue": "Waiting",
             "unit": "requests",
-            "shed": 1.5
+            "shed": 1.2
           }
         },
         "limit": {
@@ -177,7 +177,7 @@
             "consumer": "Worker",
             "queue": "Waiting",
             "unit": "requests",
-            "capacity": 6,
+            "capacity": 4,
             "onFull": "reject"
           }
         }

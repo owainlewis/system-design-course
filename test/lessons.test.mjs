@@ -263,3 +263,35 @@ test('pages link to the AI Engineer community and have no email form', () => {
 test('home page has a start link to the first lesson', () => {
   assert.match(read('scripts/build.mjs'), /class="start" href="\$\{href\(course\.parts\[0\]\.lessons\[0\]\[0\]\)\}"/);
 });
+
+/* ---------- regression checks from accuracy audit ---------- */
+test('cache-eviction: sequential LRU matches textbook hits and misses', () => {
+  const m = api.caSimulate(lesson('cache-eviction').figures.lru.scene);
+  assert.deepEqual(Array.from(m.reqs, q => q.hit), [false, false, false, false, true, true, false, true, true, false, false, false]);
+});
+test('cap-and-pacelc: fast async write reports 12 ms client latency, not background replication', () => {
+  const f = lesson('cap-and-pacelc').figures.latency.scenarios;
+  assert.equal(end(f.consistent.rows), 92);
+  assert.equal(end(f.fast.rows), 12);
+});
+test('load-shedding: shedding and queue limit finish every served request before the 2 s client deadline', () => {
+  const sc = lesson('load-shedding').figures.shed.scenarios;
+  for (const k of ['old', 'limit']) {
+    const m = api.qSimulate(sc[k].scene);
+    const done = m.msgs.filter(x => x.start != null);
+    assert.equal(done.filter(x => x.total > sc[k].scene.deadline).length, 0, `${k} has late completions`);
+  }
+});
+test('HTTP: HTTP/1.1 extra connections start only after index.html finishes', () => {
+  const rows = lesson('http').figures.versions.scenarios.h1x3.rows;
+  const htmlEnd = end([rows[0]]);
+  for (const r of rows.slice(1)) for (const sp of api.tlSpans(r)) assert.ok(sp.s >= htmlEnd, `${r.label} starts at ${sp.s} before ${htmlEnd}`);
+});
+test('URL shortener: keyspace slider stays within valid (0, 100]% usage', () => {
+  const f = lesson('url-shortener').figures.keyspace;
+  const rng = f.controls.find(c => c.key === 'len');
+  for (let len = rng.min; len <= rng.max; len++) {
+    const pct = api.calcRun(f, { len }).out[1].v;
+    assert.ok(pct > 0 && pct <= 100, `len=${len} gives ${pct}%`);
+  }
+});

@@ -457,7 +457,6 @@ footer .foot-sep { color: var(--hair-2); }
 .gh-badge:hover { border-color: var(--accent); background: var(--fig); color: var(--accent); text-decoration: none; }
 
 .hero-stage { min-width: 0; }
-.hero-tabs { margin-bottom: 10px; }
 .hero-stage figure { margin: 0; }
 .hero-stage figcaption { margin-top: 10px; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .hero-stage figcaption a { color: var(--accent); font-weight: 500; text-decoration: none; white-space: nowrap; }

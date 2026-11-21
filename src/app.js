@@ -182,20 +182,13 @@ function buildHome() {
     };
   }
   const stage = $('hero-stage');
-  if (stage && SPEC.heroDemos) {
-    const keys = Object.keys(SPEC.heroDemos);
-    let cur = keys[0];
-    const mount = key => {
-      cur = key;
-      FIGS.length = 0;
-      const d = SPEC.heroDemos[key];
-      stage.innerHTML = `<div class="hero-tabs"><div class="seg">${keys.map(k => `<button data-hero="${k}" aria-pressed="${k === cur}">${esc(SPEC.heroDemos[k].tab)}</button>`).join('')}</div></div>`
-        + figureHTML('hero-demo', d.def, '', 0)
-        + `<figcaption><span>${esc(d.caption)}</span><a href="${lessonHref(d.slug)}">Open lesson →</a></figcaption>`;
-      stage.querySelectorAll('[data-hero]').forEach(b => b.onclick = () => mount(b.dataset.hero));
-      wireFigure(FIGS[0]);
-    };
-    mount(cur);
+  if (stage && SPEC.hero) {
+    FIGS.length = 0;
+    stage.innerHTML = figureHTML('hero-demo', SPEC.hero.def, '', 0);
+    const fc = document.createElement('figcaption');
+    fc.innerHTML = `<span>${esc(SPEC.hero.caption)}</span><a href="${lessonHref(SPEC.hero.slug)}">Read lesson →</a>`;
+    stage.querySelector('figure').appendChild(fc);
+    wireFigure(FIGS[0]);
   }
 }
 

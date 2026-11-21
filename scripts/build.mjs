@@ -63,25 +63,22 @@ const GH_SVG = '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentCol
 
 const homeSpec = {
   home: true,
-  clients: bySlug['rate-limiting']?.clients || {},
-  heroDemos: {
-    ring: {
-      tab: 'Consistent hashing',
-      slug: 'consistent-hashing',
-      caption: 'Adding a fifth server on a hash ring moves only the keys it takes over.',
-      def: bySlug['consistent-hashing'].figures.ring
-    },
-    token: {
-      tab: 'Rate limiting',
-      slug: 'rate-limiting',
-      caption: 'A token bucket absorbs a burst up to capacity, then enforces the refill rate.',
-      def: bySlug['rate-limiting'].figures['token-bucket']
-    },
-    vectors: {
-      tab: 'Vector search',
-      slug: 'vector-search',
-      caption: 'IVF probes the nearest Voronoi cluster, trading a little recall for speed.',
-      def: { ...bySlug['vector-search'].figures.search, ctrl: { scenario: 'ivf1' } }
+  hero: {
+    slug: 'how-a-request-travels',
+    caption: 'Start simple: a browser sends a request to one web server, which asks the database and replies.',
+    def: {
+      kind: 'overview',
+      ctrl: { stage: 'basic' },
+      controls: [{
+        type: 'toggle',
+        key: 'stage',
+        label: '',
+        options: [
+          ['basic', '1. Basic app'],
+          ['cache', '2. Add a cache'],
+          ['scale', '3. Scale out']
+        ]
+      }]
     }
   }
 };

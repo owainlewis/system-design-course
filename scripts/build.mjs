@@ -59,6 +59,7 @@ const totalMinutes = lessons.reduce((a, l) => a + (l.minutes || 0), 0);
 const slugify = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const BRAND_SVG = '<svg class="brand-mark" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.75" y="6.25" width="4.5" height="5.5" rx="1.2"/><rect x="11.75" y="1.75" width="4.5" height="5.5" rx="1.2"/><rect x="11.75" y="10.75" width="4.5" height="5.5" rx="1.2"/><path d="M6.25 9h2.25c1 0 1.25-4.5 3.25-4.5M8.5 9c1 0 1.25 4.5 3.25 4.5"/></svg>';
 const CHK_SVG = '<svg class="l-done" width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Visited"><path d="M3 7.4 5.7 10 11 4.2"/></svg>';
+const GH_SVG = '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>';
 
 const homeSpec = {
   home: true,
@@ -106,6 +107,10 @@ const homeBody = `<header class="bar">
         <a class="start" href="${href(course.parts[0].lessons[0][0])}">Start with lesson 1: ${esc(course.parts[0].lessons[0][1])} <span aria-hidden="true">→</span></a>
         <a class="hero-secondary" href="#syllabus">Browse syllabus</a>
       </div>
+      <div class="hero-note">
+        <p>I made these notes for my own personal study, and I hope they're useful. If you spot any mistakes or want to contribute, feel free to open an issue or PR:</p>
+        <a class="gh-badge" href="https://github.com/owainlewis/system-design-course" target="_blank" rel="noopener">${GH_SVG}<span>owainlewis/system-design-course</span></a>
+      </div>
     </div>
     <div class="hero-stage" id="hero-stage"></div>
   </section>
@@ -140,7 +145,9 @@ const homeBody = `<header class="bar">
   <footer>
     <span>${esc(course.title)}</span>
     <span class="foot-sep">·</span>
-    <span>Free interactive course on distributed systems and AI engineering</span>
+    <span>Open-source personal study notes</span>
+    <span class="foot-sep">·</span>
+    <a href="https://github.com/owainlewis/system-design-course" target="_blank" rel="noopener">GitHub</a>
   </footer>
 </main>`;
 

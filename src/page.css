@@ -439,6 +439,23 @@ footer .foot-sep { color: var(--hair-2); }
 }
 .hero-secondary:hover { border-color: var(--ink-2); color: var(--ink); background: var(--fig); text-decoration: none; }
 
+.hero-note {
+  margin-top: 24px; padding-top: 18px;
+  border-top: 1px solid var(--hair);
+  max-width: 48ch;
+  font: 14px/1.55 var(--sans); color: var(--muted);
+}
+.hero-note p { margin: 0 0 11px; }
+.gh-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px; border-radius: 7px;
+  border: 1px solid var(--hair-2); background: var(--bg-elev);
+  font: 500 12.5px/1 var(--mono); color: var(--ink);
+  text-decoration: none; box-shadow: var(--shadow-btn);
+  transition: border-color .15s, background .15s, color .15s;
+}
+.gh-badge:hover { border-color: var(--accent); background: var(--fig); color: var(--accent); text-decoration: none; }
+
 .hero-stage { min-width: 0; }
 .hero-tabs { margin-bottom: 10px; }
 .hero-stage figure { margin: 0; }
